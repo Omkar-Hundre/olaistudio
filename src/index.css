@@ -1,0 +1,115 @@
+@import "tailwindcss";
+
+/**
+ * ==============================================================================
+ * Tailwind v4 Class-based Dark Mode Configuration
+ * ==============================================================================
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/**
+ * ==============================================================================
+ * Design Tokens & Semantic Color Palette
+ * ==============================================================================
+ * Centralized, extensible theme tokens for both Light and Dark modes.
+ * ==============================================================================
+ */
+
+:root {
+  --color-brand: #2E7CF6;
+  --color-brand-dark: #1E6BE0;
+  --color-brand-soft: #EAF2FE;
+  --color-ink: #0B0D12;
+  --color-page: #F4F5F7;
+
+  /* Semantic Theme Tokens: Light Mode */
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #FAFAFA;
+  --bg-tertiary: #F4F4F5;
+  --bg-hover: rgba(0, 0, 0, 0.04);
+  --bg-active: rgba(0, 0, 0, 0.08);
+
+  --border-subtle: #E4E4E7;
+  --border-medium: #D4D4D8;
+  --border-focus: #18181B;
+
+  --text-primary: #09090B;
+  --text-secondary: #52525B;
+  --text-muted: #A1A1AA;
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Inter Tight', 'Inter', sans-serif;
+  --font-note: 'Caveat', cursive;
+}
+
+/* Semantic Theme Tokens: Dark Mode */
+.dark, [data-theme="dark"] {
+  --color-ink: #FAFAFA;
+  --color-page: #090A0C;
+
+  --bg-primary: #121316;
+  --bg-secondary: #0E0F12;
+  --bg-tertiary: #1A1B1F;
+  --bg-hover: rgba(255, 255, 255, 0.06);
+  --bg-active: rgba(255, 255, 255, 0.10);
+
+  --border-subtle: #27272A;
+  --border-medium: #3F3F46;
+  --border-focus: #FAFAFA;
+
+  --text-primary: #FAFAFA;
+  --text-secondary: #A1A1AA;
+  --text-muted: #71717A;
+}
+
+body {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.char {
+  display: inline-block;
+  will-change: transform, opacity;
+}
+
+/* Fluid Liquid Wavy Gradient Keyframe Animations */
+@keyframes fluidMove1 {
+  0%, 100% { transform: translate(0px, 0px) scale(1) rotate(0deg); }
+  33% { transform: translate(30px, -35px) scale(1.15) rotate(45deg); }
+  66% { transform: translate(-25px, 20px) scale(0.92) rotate(-30deg); }
+}
+
+@keyframes fluidMove2 {
+  0%, 100% { transform: translate(0px, 0px) scale(1) rotate(0deg); }
+  33% { transform: translate(-35px, 25px) scale(0.88) rotate(-45deg); }
+  66% { transform: translate(30px, -30px) scale(1.12) rotate(35deg); }
+}
+
+@keyframes fluidSpin {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(180deg) scale(1.08); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+@keyframes fluidPulse {
+  0%, 100% { opacity: 0.75; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.03); }
+}
+
+.animate-fluid-1 {
+  animation: fluidMove1 9s ease-in-out infinite;
+}
+
+.animate-fluid-2 {
+  animation: fluidMove2 11s ease-in-out infinite;
+}
+
+.animate-fluid-spin {
+  animation: fluidSpin 14s linear infinite;
+}
+
+.animate-fluid-pulse {
+  animation: fluidPulse 4s ease-in-out infinite;
+}

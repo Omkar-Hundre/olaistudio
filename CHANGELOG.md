@@ -1,0 +1,273 @@
+# Changelog
+
+All notable changes to the **Olai** project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+---
+
+## [2.5.0] - 2026-08-28
+
+### Added
+- **Frontier / Arena UI Layout Alignment**:
+  - Styled center headline with italic serif typography: `Experience the frontier`.
+  - Implemented 6 quick-start template cards grid (*Create a landing page*, *Build a dashboard*, *Make a game*, *Design to Code*, *Build a fullstack app*, *Launch a storefront*) with instant prompt auto-population.
+  - Implemented the input box toolbar pills (*App files*, *⚡ Olai M1*, *...*) and send button.
+  - Added the floating bottom-right YouTube / community callout card with dismissal option.
+  - Aligned the top header with Mode dropdown, announcement banner, and Private badge.
+  - Reorganized sidebar with brand selector, `+ New Chat` pill button, Leaderboard, Search, Workspace, and bottom credits percentage ring.
+
+---
+
+## [2.4.0] - 2026-08-28
+
+### Added
+- **Full Model Discovery in Workspace (`ChatWorkspace.jsx`)**:
+  - Dynamically runs health checks to discover and populate all verified models for connected keys (e.g. `Gemini 2.5 Pro`, `Gemini 2.5 Flash`, `Gemini 2.0 Flash`, `Gemini 1.5 Pro`, `Gemini 1.5 Flash`, `OpenAI GPT-4o`, `Claude 3.5 Sonnet`).
+  - Maintains `Olai M1` as the default model using API credits.
+- **Centered Initial Prompt Layout**:
+  - Positions the prompt composer in the exact vertical and horizontal center of the viewport on initial empty state.
+- **Bright Fluid Liquid Glowing Aura**:
+  - Added an animated, vibrant iridescent gradient glow around the input box with fluid spinning and pulsing motion.
+- **Animated Rotating Placeholders**:
+  - Added rotating placeholder animations with smooth fade transitions.
+- **Click-Outside Focus & Dropdown Dismissal**:
+  - Dropdown closes automatically when clicking anywhere outside.
+
+---
+
+## [2.3.0] - 2026-08-28
+
+### Added
+- **Central Chat Workspace (`ChatWorkspace.jsx`)**:
+  - Implemented center prompt composer with fluid, semi-solid flowing gradient animation (`animate-fluid-1`, `animate-fluid-2`).
+  - Added file/image attachment trigger with chip previews.
+  - Added dynamic model selection dropdown:
+    - **`Olai M1`**: Default model backed by system credits (1 credit/query).
+    - **User Custom Models**: Dynamically populated from user's connected OpenAI, Claude, or Gemini API keys (0 credits).
+  - Built interactive conversational message stream with copy tools and real-time proxy dispatch.
+  - Linked credit deduction trigger with sidebar credit progress ring.
+
+---
+
+## [2.2.0] - 2026-08-28
+
+### Added
+- **Activity Logs & Audit Tracking (`public.activity_logs`)**:
+  - Implemented database table (`id`, `user_id`, `action`, `model`, `credits_used`, `details`, `created_at`) with strict RLS.
+  - Connected `ai-proxy` Edge Function to automatically record every AI completion and credit transaction.
+  - Added live activity logs viewer with timestamps and credit delta badges in Settings modal (`SettingsModal.jsx`).
+- **Configured Serverless AI Proxy Platform Key**:
+  - Configured platform Google Gemini key inside the serverless `ai-proxy` Edge Function (version 2) protecting backend credentials.
+- **Sleek Sliding Pill Theme Switcher (`ThemePillSwitch`)**:
+  - Replaced the simple icon button in the dashboard navbar with a modern sliding pill toggle with smooth spring transitions.
+
+### Changed
+- **Credits Widget Percentage-Only Display (`Sidebar.jsx`)**:
+  - Streamlined sidebar credit widget to show only the clean percentage and circular SVG ring, removing raw numbers.
+
+---
+
+## [2.1.0] - 2026-08-28
+
+### Added
+- **Secure Serverless AI Proxy (`ai-proxy` Edge Function)**:
+  - Deployed active Supabase Edge Function with JWT verification protecting system credentials.
+  - Automatically executes requests using the user's custom API key (0 credit deduction) if configured, or falls back to system credentials with atomic 1-credit deduction.
+  - Rejects requests when credit balance is exhausted ($< 1$) with code 402.
+  - Client interface implemented in `aiProxyService.js`.
+- **Monochrome Circular Progress Ring for Credits (`Sidebar.jsx`)**:
+  - Replaced the horizontal bar with a circular SVG progress ring in neutral light/dark theme colors.
+  - Removed all bright/yellow colors and emojis for a clean SaaS aesthetic.
+
+---
+
+## [2.0.0] - 2026-08-28
+
+### Added
+- **Cryptographically Secured Credit System (`public.user_credits`)**:
+  - Implemented a dedicated database table (`id`, `user_id`, `balance`, `allocated_credits`, `used_credits`, `tier`, `token_hash`, `last_refill_at`).
+  - Row Level Security (RLS) restricts client permissions to read-only (`SELECT`), strictly prohibiting direct frontend balance manipulation.
+  - Credit adjustments and deductions are managed exclusively via atomic `SECURITY DEFINER` stored procedures (`deduct_user_credits`, `initialize_user_credits`).
+  - Implemented cryptographic signature token hashing (`token_hash`) with vault salting for tamper detection.
+  - Automatically initializes 100 credits for all new and existing registered user accounts.
+- **Real-Time Credits Widget in Sidebar (`Sidebar.jsx`)**:
+  - Added a clean, compact credit card widget positioned right above the Settings tab showing current balance (`100 / 100`) and a progress bar.
+
+### Changed
+- **Redesigned Settings Modal Mobile Architecture (`SettingsModal.jsx`)**:
+  - Replaced awkward horizontal scrolling tabs on mobile with a clean, native drop selector with zero overflow and touch-friendly navigation.
+  - Retained the desktop two-column sidebar layout for screens $\ge 768\text{px}$.
+
+---
+
+## [1.9.0] - 2026-08-28
+
+### Changed
+- **Compact API Key Input UI (`SettingsModal.jsx`)**:
+  - Reverted bulky card containers back to the clean, streamlined standard input layout.
+  - Placed the "Test" button and visibility eye toggle inline inside the right edge of each input box.
+  - Replaced bulky status badges with subtle text indicators (`✓ Verified (X models available)` + collapsible model list).
+  - Automatically saves the key in the database upon successful verification.
+
+---
+
+## [1.8.0] - 2026-08-28
+
+### Added
+- **Live Model Health Check & API Key Verification (`modelHealthService.js`)**:
+  - Automatically queries OpenAI, Anthropic Claude, and Google Gemini endpoints upon key entry/blur/test.
+  - Verifies key validity and dynamically discovers available models (e.g. `gpt-4o`, `o3-mini`, `claude-3-7-sonnet`, `gemini-2.0-flash`).
+  - Displays instant status indicators (🟢 Verified, 🔴 Invalid with detailed error reason, ⏳ Checking models).
+  - Expandable chip previews of all discovered models per provider.
+- **Fully Responsive Settings Modal (`SettingsModal.jsx`)**:
+  - Designed for mobile phones, tablets, and desktop displays (`h-[92vh]` on mobile / `h-[620px]` on desktop).
+  - Mobile horizontal scrollable tab switcher with touch-optimized padding and full-width card layout.
+
+---
+
+## [1.7.0] - 2026-08-28
+
+### Added
+- **Dark Mode Logo (`Olai Logo Dark.png`)**:
+  - Automatically switches between `/Olai Logo.png` (light mode) and `/Olai Logo Dark.png` (dark mode) across Navbar, Sidebar, and AuthModal via `useTheme().logoSrc`.
+- **Secure User API Keys Table (`public.user_api_keys`)**:
+  - Created dedicated Supabase table (`id`, `user_id`, `openai_key`, `claude_key`, `gemini_key`, `created_at`, `updated_at`) with strict Row Level Security (RLS).
+  - Only authenticated owners can read, insert, update, or delete their keys (`auth.uid() = user_id`).
+- **API Key Service & 24h Local Cache (`apiKeyService.js`)**:
+  - Provides seamless cloud sync with Supabase and local storage caching refreshed on a 24-hour cycle.
+  - Fully integrated with the Settings modal "Models & API Keys" tab with instant feedback.
+
+### Fixed
+- **Tailwind v4 Class-Based Dark Mode**:
+  - Added `@custom-variant dark (&:where(.dark, .dark *));` to `src/index.css` resolving class-based dark mode toggling.
+  - Enhanced `ThemeContext.jsx` to guarantee immediate DOM synchronization and persistent local storage restoration across visits.
+
+---
+
+## [1.6.0] - 2026-08-28
+
+### Added
+- **Global Theme System & Tokens (`ThemeContext.jsx` & `index.css`)**:
+  - Implemented semantic CSS design tokens under `:root` and `.dark` / `[data-theme="dark"]` for colors, surfaces, borders, and typography.
+  - Added support for Light, Dark, and OS System preferences with persistent storage (`olai_theme`).
+  - Automatic synchronization with `document.documentElement` class list and `color-scheme`.
+- **Functioning Theme Toggles (`ThemeToggle.jsx`)**:
+  - `ThemeToggleButton`: Sleek, compact Sun/Moon icon toggle button placed in the top dashboard navbar.
+  - `ThemeSegmentedSelector`: 3-way segmented selector (Light / Dark / System) placed in the Settings dialog under "Appearance & Theme".
+- **Dark Mode Support Across Authenticated Workspace**:
+  - Styled `AppDashboard.jsx`, `Sidebar.jsx`, and `SettingsModal.jsx` with high-contrast, professional dark mode tokens.
+
+---
+
+## [1.5.0] - 2026-08-28
+
+### Added
+- **Centralized Settings Dialog (`SettingsModal.jsx`)**:
+  - Consolidates profile management, AI Models & API Keys, Knowledge Base, and Activity Logs into a single modal.
+  - Can be opened via the sidebar's bottom Settings button, the sidebar profile card, or the top-right navbar profile circle.
+- **Top-Right Profile Circle**:
+  - Added user initials avatar circle on the top-right corner of the dashboard navbar that triggers the Settings modal.
+- **Previous Projects Section in Sidebar**:
+  - Added "Previous Projects" section underneath the workspace navigation with real state binding (no dummy clutter).
+  - Placed "New Chat" button prominently at the top.
+
+### Changed
+- **Sidebar Streamlining**:
+  - Moved system navigation options into the single Settings trigger at the bottom of the sidebar.
+  - Kept the workspace options intact.
+- **Removed Loading Animation**:
+  - Removed artificial pulsing logo and loading progress bar from `App.jsx` for clean instantaneous mounting.
+
+---
+
+## [1.4.0] - 2026-08-28
+
+### Changed
+- **Professional Sidebar Redesign (`Sidebar.jsx`)**:
+  - Replaced over-rounded toy-like radiuses with clean, crisp `rounded-md` / `rounded-lg` geometry.
+  - Refined vertical rhythm and item padding for a modern, sleek developer-tool aesthetic (Linear / Stripe style).
+  - Organized navigation into clear sections (`Workspace` and `System`) with subtle tracking labels.
+  - Streamlined user profile footer with clean avatar, typography, and one-click logout.
+- **Removed AI & Technical Badges**:
+  - Removed the green "Ready" badge from the dashboard header.
+  - Removed "JWT Session Active" badge from the sidebar.
+  - Removed "Supabase RLS & JWT Auth Active" footer tag.
+- **Clean Empty Workspace Layout (`AppDashboard.jsx`)**:
+  - Removed the premature canvas dot grid, canvas zoom dock, and starter cards.
+  - Maintained a serene, minimal empty workspace container ready for modular features.
+
+---
+
+## [1.3.0] - 2026-08-28
+
+### Added
+- **Responsive Workspace Screen (`AppDashboard.jsx`)**:
+  - Automatically rendered when a user logs in (`isAuthenticated === true`).
+  - Spatial canvas dot grid background (`radial-gradient` pattern).
+  - Floating zoom, pan, select, and view-reset toolbar dock.
+  - Interactive starter cards ("Blank Node Canvas", "Connect AI Providers").
+- **Collapsible Responsive Sidebar (`Sidebar.jsx`)**:
+  - Seamless desktop expand/collapse mode and mobile slide-over drawer.
+  - Official Olai logo branding (`/Olai Logo.png`).
+  - Navigation links for Canvas, Templates, AI Models, Memory, Logs, and Settings.
+  - Active 7-Day JWT session indicator badge and user profile with logout.
+- **7-Day Session Lifecycle & Idempotency Key**:
+  - Implemented custom auth storage wrapper in `supabase.js` enforcing a 7-day session expiration TTL (`SESSION_MAX_AGE_MS = 604800000`).
+  - Added `generateIdempotencyKey()` for deduplication and atomic operations.
+- **Database Security Hardening & Normalization**:
+  - Set explicit `search_path` on all PostgreSQL `SECURITY DEFINER` functions (`handle_new_user`, `get_schema_overview`).
+  - Revoked public direct execute privileges on trigger functions.
+  - Added email format check constraints and btree indexes on `profiles(email)`, `profiles(created_at)`, and `waitlist(email)`.
+- **Documentation**:
+  - Added `README.md` and `CHANGELOG.md`.
+
+### Changed
+- Refactored brand logos in `Navbar.jsx`, `Sidebar.jsx`, and `AuthModal.jsx` to render the clean standalone logo image without redundant adjacent text.
+
+---
+
+## [1.2.0] - 2026-08-27
+
+### Added
+- **Country Code Selector**:
+  - Integrated international phone country code dropdown (`+91`, `+1`, `+44`, `+61`, `+49`, `+33`, `+81`, `+65`, `+971`) with flag indicators.
+- **Anti-Dummy & Credibility Validation**:
+  - Real-time validation rejecting repeated digits (`0000000000`, `1111111111`, `9999999999`).
+  - Sequential pattern detector (`1234567890`, `9876543210`, `1122334455`).
+  - Strict age validation (13 to 110 years, rejecting future dates).
+  - Dummy email & placeholder name detector (`test`, `asdf`, `fake@fake.com`, `admin@admin.com`).
+- **Smart Pre-filled Defaults**:
+  - Default pre-filled Date of Birth (`2002-06-15`).
+  - Default pre-filled country code (`+91`).
+
+### Changed
+- Converted `AuthModal.jsx` to a pure light SaaS theme matching the `#F2F3F5` / `#FFFFFF` design language.
+
+---
+
+## [1.1.0] - 2026-08-27
+
+### Added
+- **Supabase Schema & Data Sync Utility (`scripts/sync-schema.js`)**:
+  - Registered `npm run db:sync` in `package.json`.
+  - Auto-generates `SUPABASE_SCHEMA.md` with table definitions, column types, keys, RLS flags, row counts, and compact 3-row data snapshots.
+- **Database Schema**:
+  - Created `public.profiles` (`id`, `name`, `dob`, `email`, `phone`, `created_at`, `updated_at`) with RLS enabled.
+  - Created `handle_new_user()` trigger function on `auth.users` to automatically populate `public.profiles` upon signup.
+- **Authentication Service & Context**:
+  - Pure business logic layer in `services/authService.js` and `services/profileService.js`.
+  - Global `AuthContext.jsx` and `useAuth` hook.
+  - Email verification link detection and redirect handler (`#auth?verified=true`).
+- **Modal Component (`AuthModal.jsx`)**:
+  - Sign in and Sign up tabs collecting Full Name, Date of Birth, Email ID, Phone Number, and Password.
+
+---
+
+## [1.0.0] - 2026-08-27
+
+### Initial Checkpoint
+- Restored baseline project structure from `backup.zip`.
+- Cleaned unused database tables from previous explorations, retaining `public.waitlist`.
+- Verified Vite React setup with TailwindCSS and GSAP animations.
