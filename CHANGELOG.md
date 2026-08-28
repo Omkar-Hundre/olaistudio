@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.6.0] - 2026-08-28
+
+### Added
+- **Git Control & Repository Initialization**:
+  - Initialized local Git repository, configured branch tracking, and pushed all source code to `origin/main` (`https://github.com/Omkar-Hundre/olaistudio.git`).
+- **Standardized Ignored Paths (`.gitignore`)**:
+  - Updated configuration to ignore local environments (`.env*`), builds (`dist/`), packages (`node_modules/`), IDE workspace configurations, and Vercel artifacts for secure code collaboration.
+
+---
+
 ## [2.5.0] - 2026-08-28
 
 ### Added
