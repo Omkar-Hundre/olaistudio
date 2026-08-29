@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.8.0] - 2026-08-29
+
+### Changed
+- **Model Subtitles Restored**:
+  - Replaced the boring or credit-based tags in the model selection dropdown with professional technical indicators:
+    - *Olai M1*: `Default • High-speed platform intelligence`
+    - *Gemini*: `Custom Key • Google AI Ultra-low latency`
+    - *OpenAI*: `Custom Key • OpenAI Core Reasoning`
+    - *Claude*: `Custom Key • Anthropic Frontier Accuracy`
+- **Textarea Resize & Scrollbar**:
+  - Implemented dynamic React hooks to recalculate the height of the prompt composer input during text edits, deletions, pastes, and backspaces.
+  - Added a max-height limit of `180px` coupled with a custom, sleek scrollbar class (`custom-scrollbar`) to prevent irregular expansions or layout inconsistencies.
+- **Vertical Alignment**:
+  - Adjusted top flex offsets and paddings to align the Sparkles icon and the first line of the prompt input text baseline.
+
+---
+
 ## [2.7.0] - 2026-08-29
 
 ### Changed
