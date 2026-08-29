@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.7.0] - 2026-08-29
+
+### Changed
+- **Sidebar Navigation**:
+  - Replaced the *Leaderboard* nav button with a clean *Templates* page shortcut link (`Compass` icon).
+- **Header Clean Up**:
+  - Removed the *Mode ▾* selector dropdown button from the top left header bar to clean up workspace clutter.
+- **Model Selection Details**:
+  - Cleaned up custom model dropdown descriptions by removing the `"Custom Key (0 credits)"` metadata, ensuring only the credit-backed `Olai M1` model displays cost details.
+
+---
+
 ## [2.6.0] - 2026-08-28
 
 ### Added
