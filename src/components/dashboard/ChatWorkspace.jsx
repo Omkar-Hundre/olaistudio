@@ -121,7 +121,17 @@ export default function ChatWorkspace({
           if (rootNode?.hidden_commands) {
             const cmd = rootNode.hidden_commands;
             if (cmd.current_branch) setCurrentBranch(cmd.current_branch);
-            if (cmd.questions && Array.isArray(cmd.questions)) setActiveQuestions(cmd.questions);
+            if (cmd.questions && Array.isArray(cmd.questions)) {
+              // Normalize variant keys from DB (question_text, question_number, etc.)
+              const normalized = cmd.questions
+                .map((q, idx) => ({
+                  id: q.id || (q.question_number != null ? `q${q.question_number}` : `q${idx + 1}`),
+                  question: q.question || q.question_text || '',
+                  options: Array.isArray(q.options) ? q.options : [],
+                }))
+                .filter(q => q.question && q.options.length >= 2);
+              setActiveQuestions(normalized);
+            }
             if (cmd.cta_label) setCtaLabel(cmd.cta_label);
           }
         });
@@ -411,6 +421,19 @@ export default function ChatWorkspace({
       }
     }
 
+    // Persist user message BEFORE the API call so refresh never loses in-progress state
+    if (activeSessionId) {
+      saveRootSessionState({
+        sessionId: activeSessionId,
+        messages: updatedHistory,
+        confidenceScore: alignmentScore || 35,
+        currentBranch,
+        visionContent,
+        questions: activeQuestions,
+        ctaLabel,
+      });
+    }
+
     const startTime = performance.now();
     let firstChunkTime = null;
 
@@ -670,15 +693,15 @@ export default function ChatWorkspace({
                         </div>
                       )}
 
-                      {!isUser && msg.rawThinkingContent && (
+                      {!isUser && !msg.isStreaming && msg.durationMs && (
                         <details className="mb-2 group">
                           <summary className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300 cursor-pointer select-none list-none">
                             <Sparkles className="h-3 w-3 text-amber-500" />
-                            <span>Thinking details {msg.durationMs ? `(${Math.round(msg.durationMs)}ms)` : ''}</span>
-                            <ChevronDown className="h-3 w-3 transition-transform group-open:rotate-180" />
+                            <span>Completed in {(msg.durationMs / 1000).toFixed(1)}s</span>
+                            <ChevronDown className="h-3 w-3 transition-transform group-open:rotate-180 ml-0.5" />
                           </summary>
                           <div className="mt-1.5 pl-3 border-l-2 border-slate-200 dark:border-zinc-700 text-[11px] text-slate-500 dark:text-zinc-400 leading-relaxed">
-                            {msg.rawThinkingContent}
+                            {msg.rawThinkingContent || `Response generated • ${Math.round(msg.durationMs)}ms total`}
                           </div>
                         </details>
                       )}

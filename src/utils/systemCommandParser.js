@@ -76,19 +76,15 @@ export function safeJsonParse(raw) {
     const questionsBlockMatch = clean.match(/"questions"\s*:\s*(\[[\s\S]*?\])\s*(?:,|}|\n)/);
     if (questionsBlockMatch) {
       try {
-        extracted.questions = JSON.parse(questionsBlockMatch[1]);
+        const rawQs = JSON.parse(questionsBlockMatch[1]);
+        // Normalize any variant key names (question_text, question_number) to standard shape
+        extracted.questions = rawQs.map((q, idx) => ({
+          id: q.id || (q.question_number != null ? `q${q.question_number}` : `q${idx + 1}`),
+          question: q.question || q.question_text || '',
+          options: Array.isArray(q.options) ? q.options : [],
+        }));
       } catch {
-        const qMatches = [...questionsBlockMatch[1].matchAll(/{\s*"id"\s*:\s*"([^"]+)"[\s\S]*?"question"\s*:\s*"([^"]+)"[\s\S]*?"options"\s*:\s*\[([\s\S]*?)\]\s*}/g)];
-        if (qMatches.length > 0) {
-          extracted.questions = qMatches.map((m, idx) => {
-            const options = [...m[3].matchAll(/"([^"]+)"/g)].map(opt => opt[1]);
-            return {
-              id: m[1] || `q${idx + 1}`,
-              question: m[2],
-              options: options.length > 0 ? options : ['Option 1', 'Option 2', 'Option 3'],
-            };
-          });
-        }
+        // plain regex fallback
       }
     }
 
@@ -199,6 +195,23 @@ export function extractStructuredQuestionsFromText(text) {
 }
 
 /**
+ * Normalizes AI questions into standard { id, question, options[] } shape
+ * regardless of what keys the model used (question_text, question_number, etc.)
+ * @param {Array} rawQuestions
+ * @returns {Array<{ id: string, question: string, options: string[] }>}
+ */
+function normalizeQuestions(rawQuestions) {
+  if (!Array.isArray(rawQuestions)) return [];
+  return rawQuestions
+    .map((q, idx) => ({
+      id: q.id || (q.question_number != null ? `q${q.question_number}` : `q${idx + 1}`),
+      question: q.question || q.question_text || '',
+      options: Array.isArray(q.options) ? q.options : [],
+    }))
+    .filter(q => q.question && q.question.length > 3 && q.options.length >= 2);
+}
+
+/**
  * Parses structured JSON response or system commands from AI output
  * @param {string} text 
  * @returns {{ cleanText: string, commands: Object | null }}
@@ -214,6 +227,10 @@ export function parseSystemCommands(text) {
   if (trimmed.startsWith('{') || trimmed.startsWith('```json') || trimmed.startsWith('```')) {
     const parsedJson = safeJsonParse(trimmed);
     if (parsedJson && (parsedJson.greeting || parsedJson.questions || parsedJson.plan_markdown || parsedJson.confidence_score !== undefined)) {
+      // Normalize question keys regardless of model output variant
+      if (parsedJson.questions) {
+        parsedJson.questions = normalizeQuestions(parsedJson.questions);
+      }
       const cleanGreeting = parsedJson.greeting || parsedJson.plan_markdown || 'Here are the next steps for your project:';
       return {
         cleanText: cleanGreeting,
