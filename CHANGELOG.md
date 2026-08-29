@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.9.0] - 2026-08-29
 
 ### Added
+- **Strict Deterministic JSON Guardrails (`workspace_modes`, `systemCommandParser.js`)**:
+  - Implemented strict JSON schema specification in `workspace_modes` so all AI responses follow a deterministic structured payload (`greeting`, `questions`, `confidence_score`, `plan_markdown`).
+  - Added live greeting stream preview extraction so users see real-time text while the underlying structured payload is processed.
+  - Wrapped stream lifecycle in `try/finally` blocks to prevent buffering spinner stalls in the chat bar.
 - **Dynamic URL Routing (`/c/:sessionId`) (`AppDashboard.jsx`)**:
   - Implemented dynamic route support (`/c/:sessionId` and `?c=:sessionId`) so every conversation has a unique, bookmarkable URL.
   - Refreshing the browser preserves the exact active conversation rather than resetting to a blank new chat.

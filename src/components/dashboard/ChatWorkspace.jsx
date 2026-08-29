@@ -411,136 +411,152 @@ export default function ChatWorkspace({
       }
     }
 
-    await sendStreamingProxyChatMessage({
-      messages: apiPayload,
-      provider: selectedModel.provider,
-      model: selectedModel.rawModel,
-      systemPrompt: activeMode?.systemPrompt || '',
-      onChunk: (_delta, accumulatedFullText) => {
-        const cleanStreamingText = accumulatedFullText.replace(/%%%SYSTEM_CMD%%%[\s\S]*$/, '').trim();
-        setMessages((prev) => {
-          const next = [...prev];
-          if (next.length > 0) {
-            next[next.length - 1] = {
-              ...next[next.length - 1],
-              content: accumulatedFullText,
-              displayContent: cleanStreamingText,
-            };
-          }
-          return next;
-        });
-      },
-      onDone: ({ fullText }) => {
-        setIsSending(false);
-        const { cleanText, commands } = parseSystemCommands(fullText);
-        const fullContent = fullText.replace(/%%%SYSTEM_CMD%%%[\s\S]*$/, '').trim();
-
-        const finalAssistantMessage = {
-          role: 'assistant',
-          content: fullContent,
-          displayContent: cleanText,
-          modelName: selectedModel.name,
-          timestamp: new Date().toISOString(),
-          isStreaming: false,
-        };
-
-        setMessages((prev) => {
-          const next = [...prev];
-          if (next.length > 0) {
-            next[next.length - 1] = finalAssistantMessage;
-          }
-          return next;
-        });
-
-        let targetScore = alignmentScore || 35;
-        let targetBranch = currentBranch;
-        let targetQuestions = [];
-        let targetVision = visionContent;
-        let targetCta = ctaLabel;
-
-        if (commands) {
-          if (commands.confidence_score !== undefined) {
-            targetScore = commands.confidence_score;
-            setAlignmentScore(commands.confidence_score);
-            if (activeSessionId) {
-              updateWorkflowSession(activeSessionId, { confidence_score: commands.confidence_score });
-            }
-          }
-          if (commands.current_branch) {
-            targetBranch = commands.current_branch;
-            setCurrentBranch(commands.current_branch);
-          }
+    try {
+      await sendStreamingProxyChatMessage({
+        messages: apiPayload,
+        provider: selectedModel.provider,
+        model: selectedModel.rawModel,
+        systemPrompt: activeMode?.systemPrompt || '',
+        onChunk: (_delta, accumulatedFullText) => {
+          let cleanStreamingText = accumulatedFullText.replace(/%%%SYSTEM_CMD%%%[\s\S]*$/, '').trim();
           
-          const fallbackTitle = (rawText || '').split('\n')[0].slice(0, 42).trim() || 'Project Chat';
-          const finalTitle = commands?.suggested_title || (sessionTitle && sessionTitle !== 'New Session' && sessionTitle !== 'New Conversation' ? sessionTitle : fallbackTitle);
-          setSessionTitle(finalTitle);
-          if (activeSessionId) {
-            updateWorkflowSession(activeSessionId, { title: finalTitle });
+          // If response is streaming JSON, extract greeting preview dynamically
+          const greetingMatch = accumulatedFullText.match(/"greeting"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
+          if (greetingMatch) {
+            cleanStreamingText = greetingMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
+          } else if (accumulatedFullText.trim().startsWith('{') || accumulatedFullText.trim().startsWith('```')) {
+            cleanStreamingText = 'Analyzing your project requirements...';
           }
 
-          if (commands.questions && Array.isArray(commands.questions) && commands.questions.length > 0) {
-            targetQuestions = commands.questions;
-            setActiveQuestions(commands.questions);
-          } else {
-            setActiveQuestions([]);
-          }
-          if (commands.ready_for_vision || (commands.confidence_score !== undefined && commands.confidence_score >= 85)) {
-            targetVision = cleanText;
-            setVisionContent(cleanText);
-            setActiveQuestions([]);
-            if (commands.cta_label) {
-              targetCta = commands.cta_label;
-              setCtaLabel(commands.cta_label);
+          setMessages((prev) => {
+            const next = [...prev];
+            if (next.length > 0) {
+              next[next.length - 1] = {
+                ...next[next.length - 1],
+                content: accumulatedFullText,
+                displayContent: cleanStreamingText,
+              };
             }
-            if (activeSessionId) {
-              updateWorkflowSession(activeSessionId, {
-                vision_content: cleanText,
-                status: 'vision_ready',
-                confidence_score: Math.max(85, commands.confidence_score || 85),
-              });
-            }
-          }
-        } else {
-          const fallbackTitle = (rawText || '').split('\n')[0].slice(0, 42).trim() || 'Project Chat';
-          setSessionTitle(fallbackTitle);
-          if (activeSessionId) {
-            updateWorkflowSession(activeSessionId, { title: fallbackTitle });
-          }
-        }
+            return next;
+          });
+        },
+        onDone: ({ fullText }) => {
+          setIsSending(false);
+          const { cleanText, commands } = parseSystemCommands(fullText);
+          const fullContent = fullText.replace(/%%%SYSTEM_CMD%%%[\s\S]*$/, '').trim();
 
-        // Persist root node turn and conversation history to Supabase
-        if (activeSessionId) {
-          saveRootSessionState({
-            sessionId: activeSessionId,
-            messages: [...updatedHistory, finalAssistantMessage],
-            confidenceScore: targetScore,
-            currentBranch: targetBranch,
-            visionContent: targetVision,
-            questions: targetQuestions,
-            ctaLabel: targetCta,
+          const finalAssistantMessage = {
+            role: 'assistant',
+            content: fullContent,
+            displayContent: cleanText,
+            modelName: selectedModel.name,
+            timestamp: new Date().toISOString(),
+            isStreaming: false,
+          };
+
+          setMessages((prev) => {
+            const next = [...prev];
+            if (next.length > 0) {
+              next[next.length - 1] = finalAssistantMessage;
+            }
+            return next;
           });
 
-          if (onSessionCreated) {
-            onSessionCreated(activeSessionId);
-          }
-        }
+          let targetScore = alignmentScore || 35;
+          let targetBranch = currentBranch;
+          let targetQuestions = [];
+          let targetVision = visionContent;
+          let targetCta = ctaLabel;
 
-        if (onCreditDeducted && selectedModel.isPlatform) {
-          onCreditDeducted();
-        }
-      },
-      onError: (err) => {
-        setIsSending(false);
-        setErrorMessage(err);
-        setMessages((prev) => {
-          const last = prev[prev.length - 1];
-          if (last && last.role === 'assistant' && !last.content) {
-            return prev.slice(0, -1);
+          if (commands) {
+            if (commands.confidence_score !== undefined) {
+              targetScore = commands.confidence_score;
+              setAlignmentScore(commands.confidence_score);
+              if (activeSessionId) {
+                updateWorkflowSession(activeSessionId, { confidence_score: commands.confidence_score });
+              }
+            }
+            if (commands.current_branch) {
+              targetBranch = commands.current_branch;
+              setCurrentBranch(commands.current_branch);
+            }
+            
+            const fallbackTitle = (rawText || '').split('\n')[0].slice(0, 42).trim() || 'Project Chat';
+            const finalTitle = commands?.suggested_title || (sessionTitle && sessionTitle !== 'New Session' && sessionTitle !== 'New Conversation' ? sessionTitle : fallbackTitle);
+            setSessionTitle(finalTitle);
+            if (activeSessionId) {
+              updateWorkflowSession(activeSessionId, { title: finalTitle });
+            }
+
+            if (commands.questions && Array.isArray(commands.questions) && commands.questions.length > 0) {
+              targetQuestions = commands.questions;
+              setActiveQuestions(commands.questions);
+            } else {
+              setActiveQuestions([]);
+            }
+            if (commands.ready_for_vision || (commands.confidence_score !== undefined && commands.confidence_score >= 85)) {
+              targetVision = commands.plan_markdown || cleanText;
+              setVisionContent(targetVision);
+              setActiveQuestions([]);
+              if (commands.cta_label) {
+                targetCta = commands.cta_label;
+                setCtaLabel(commands.cta_label);
+              }
+              if (activeSessionId) {
+                updateWorkflowSession(activeSessionId, {
+                  vision_content: targetVision,
+                  status: 'vision_ready',
+                  confidence_score: Math.max(85, commands.confidence_score || 85),
+                });
+              }
+            }
+          } else {
+            const fallbackTitle = (rawText || '').split('\n')[0].slice(0, 42).trim() || 'Project Chat';
+            setSessionTitle(fallbackTitle);
+            if (activeSessionId) {
+              updateWorkflowSession(activeSessionId, { title: fallbackTitle });
+            }
           }
-          return prev;
-        });
-      },
-    });
+
+          // Persist root node turn and conversation history to Supabase
+          if (activeSessionId) {
+            saveRootSessionState({
+              sessionId: activeSessionId,
+              messages: [...updatedHistory, finalAssistantMessage],
+              confidenceScore: targetScore,
+              currentBranch: targetBranch,
+              visionContent: targetVision,
+              questions: targetQuestions,
+              ctaLabel: targetCta,
+            });
+
+            if (onSessionCreated) {
+              onSessionCreated(activeSessionId);
+            }
+          }
+
+          if (onCreditDeducted && selectedModel.isPlatform) {
+            onCreditDeducted();
+          }
+        },
+        onError: (err) => {
+          setIsSending(false);
+          setErrorMessage(err);
+          setMessages((prev) => {
+            const last = prev[prev.length - 1];
+            if (last && last.role === 'assistant' && !last.content) {
+              return prev.slice(0, -1);
+            }
+            return prev;
+          });
+        },
+      });
+    } catch (err) {
+      console.error('Chat stream execution error:', err);
+      setErrorMessage(err?.message || 'Unexpected communication error');
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleKeyDown = (e) => {

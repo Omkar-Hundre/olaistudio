@@ -1,11 +1,21 @@
 /**
  * ==============================================================================
- * System Command & Structured Questionnaire Parser
+ * System Command & Structured JSON Response Parser
  * ==============================================================================
  * Industrial-grade parser that:
- * 1. Safely parses %%%SYSTEM_CMD%%% JSON blocks and inline Markdown questions
- * 2. Formats questions and options into interactive tiles
- * 3. Strips technical JSON and question lists from completed assistant turns
+ * 1. Supports deterministic Pure JSON payloads from AI modes:
+ *    {
+ *      "greeting": "...",
+ *      "suggested_title": "...",
+ *      "confidence_score": 35,
+ *      "current_branch": "...",
+ *      "ready_for_vision": false,
+ *      "cta_label": "Cook",
+ *      "questions": [{ "id": "q1", "question": "...", "options": [...] }],
+ *      "plan_markdown": "..."
+ *    }
+ * 2. Parses %%%SYSTEM_CMD%%% blocks and Markdown text questions as fallback
+ * 3. Handles markdown code fences (```json ... ```), partial stream JSON, and unescaped quotes
  * ==============================================================================
  */
 
@@ -14,21 +24,21 @@
  * @param {string} raw 
  * @returns {Object | null}
  */
-function safeJsonParse(raw) {
+export function safeJsonParse(raw) {
   if (!raw || typeof raw !== 'string') return null;
 
-  // 1. Clean markdown code fences
+  // 1. Clean markdown code fences and whitespace
   let clean = raw.trim()
     .replace(/^```(?:json)?\s*/i, '')
     .replace(/\s*```$/, '')
     .trim();
 
-  // 2. Try direct parse
+  // 2. Try direct JSON parse
   try {
     return JSON.parse(clean);
   } catch {}
 
-  // 3. Clean trailing commas in objects and arrays
+  // 3. Remove trailing commas before closing braces/brackets
   try {
     const fixedTrailingCommas = clean
       .replace(/,\s*([\]}])/g, '$1')
@@ -36,9 +46,18 @@ function safeJsonParse(raw) {
     return JSON.parse(fixedTrailingCommas);
   } catch {}
 
-  // 4. Regex-based field reconstruction
+  // 4. Regex-based field reconstruction for streaming or imperfect payloads
   try {
     const extracted = {};
+
+    const greetingMatch = clean.match(/"greeting"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
+    if (greetingMatch) {
+      try {
+        extracted.greeting = JSON.parse(`"${greetingMatch[1]}"`);
+      } catch {
+        extracted.greeting = greetingMatch[1];
+      }
+    }
 
     const titleMatch = clean.match(/"suggested_title"\s*:\s*"([^"]+)"/);
     if (titleMatch) extracted.suggested_title = titleMatch[1];
@@ -54,6 +73,15 @@ function safeJsonParse(raw) {
 
     const readyMatch = clean.match(/"ready_for_vision"\s*:\s*(true|false)/i);
     if (readyMatch) extracted.ready_for_vision = readyMatch[1].toLowerCase() === 'true';
+
+    const planMatch = clean.match(/"plan_markdown"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
+    if (planMatch) {
+      try {
+        extracted.plan_markdown = JSON.parse(`"${planMatch[1]}"`);
+      } catch {
+        extracted.plan_markdown = planMatch[1];
+      }
+    }
 
     // Extract questions array block
     const questionsBlockMatch = clean.match(/"questions"\s*:\s*(\[[\s\S]*?\])\s*(?:,|}|\n)/);
@@ -84,7 +112,7 @@ function safeJsonParse(raw) {
 }
 
 /**
- * Extracts structured questions and options from markdown text
+ * Extracts structured questions and options from plain text or markdown lists
  * @param {string} text 
  * @returns {{ questions: Array<{ id: string, question: string, options: string[] }>, strippedText: string }}
  */
@@ -125,14 +153,14 @@ export function extractStructuredQuestionsFromText(text) {
     }
 
     // Check for option line:
-    // e.g. "* **A:** Have one main...", "* **B:** ...", "- A) ...", "A. ...", "* Option 1"
-    const isOptionLine = /^(?:[-*•]\s+)?(?:\*\*)?[A-DА-Я0-9][.:)]\s*(?:\*\*)?\s*(.+)/i.test(trimmed) ||
-                         /^(?:[-*•]\s+)\*\*[A-DА-Я0-9]:\*\*\s*(.+)/i.test(trimmed);
+    // e.g. "* **Choice A:** ...", "* **A:** ...", "- A) ...", "A. ..."
+    const isOptionLine = /^(?:[-*•]\s+)?(?:\*\*)?(?:Choice\s+)?[A-DА-Я0-9][.:)]\s*(?:\*\*)?\s*(.+)/i.test(trimmed) ||
+                         /^(?:[-*•]\s+)\*\*(?:Choice\s+)?[A-DА-Я0-9]:\*\*\s*(.+)/i.test(trimmed);
 
     if (currentQ && isOptionLine) {
       const cleanOption = trimmed
-        .replace(/^(?:[-*•]\s+)?(?:\*\*)?[A-DА-Я0-9][.:)]\s*(?:\*\*)?\s*/i, '')
-        .replace(/^(?:[-*•]\s+)\*\*[A-DА-Я0-9]:\*\*\s*/i, '')
+        .replace(/^(?:[-*•]\s+)?(?:\*\*)?(?:Choice\s+)?[A-DА-Я0-9][.:)]\s*(?:\*\*)?\s*/i, '')
+        .replace(/^(?:[-*•]\s+)\*\*(?:Choice\s+)?[A-DА-Я0-9]:\*\*\s*/i, '')
         .replace(/^\*+|\*+$/g, '')
         .trim();
 
@@ -144,13 +172,12 @@ export function extractStructuredQuestionsFromText(text) {
 
     // Continuation line for a previous option (if indented or wrapping)
     if (currentQ && currentQ.options.length > 0 && trimmed && !trimmed.startsWith('---') && !trimmed.startsWith('***') && !trimmed.toLowerCase().includes('please choose') && !trimmed.toLowerCase().includes('select')) {
-      // Append to the last option if it's text continuation
       const lastIdx = currentQ.options.length - 1;
       currentQ.options[lastIdx] = `${currentQ.options[lastIdx]} ${trimmed}`.trim();
       continue;
     }
 
-    // Trailing instructions like "Please choose the option you like best..."
+    // Trailing instructions like "Please choose the option..."
     if (isInQuestionsBlock && (trimmed.toLowerCase().includes('select') || trimmed.toLowerCase().includes('choose'))) {
       continue;
     }
@@ -183,7 +210,7 @@ export function extractStructuredQuestionsFromText(text) {
 }
 
 /**
- * Parses hidden system command block and markdown text from AI output
+ * Parses structured JSON response or system commands from AI output
  * @param {string} text 
  * @returns {{ cleanText: string, commands: Object | null }}
  */
@@ -192,7 +219,21 @@ export function parseSystemCommands(text) {
     return { cleanText: text || '', commands: null };
   }
 
-  // 1. Strip trailing %%%SYSTEM_CMD%%% tag if present
+  const trimmed = text.trim();
+
+  // 1. Check if the entire response is a pure JSON payload (or markdown-fenced ```json { ... } ```)
+  if (trimmed.startsWith('{') || trimmed.startsWith('```json') || trimmed.startsWith('```')) {
+    const parsedJson = safeJsonParse(trimmed);
+    if (parsedJson && (parsedJson.greeting || parsedJson.questions || parsedJson.plan_markdown || parsedJson.confidence_score !== undefined)) {
+      const cleanGreeting = parsedJson.greeting || parsedJson.plan_markdown || 'Here are the next steps for your project:';
+      return {
+        cleanText: cleanGreeting,
+        commands: parsedJson,
+      };
+    }
+  }
+
+  // 2. Check for hidden %%%SYSTEM_CMD%%% tag
   let cleanText = text.replace(/%%%SYSTEM_CMD%%%[\s\S]*$/, '').trim();
   const match = text.match(/%%%SYSTEM_CMD%%%([\s\S]*?)(?:%%%SYSTEM_CMD%%%|$)/);
 
@@ -201,7 +242,7 @@ export function parseSystemCommands(text) {
     commands = safeJsonParse(match[1].trim());
   }
 
-  // 2. Extract questions from text if inline markdown questions are present:
+  // 3. Fallback: extract questions from text if inline markdown questions are present
   const { questions: textQuestions, strippedText } = extractStructuredQuestionsFromText(cleanText);
 
   if (textQuestions.length > 0) {
