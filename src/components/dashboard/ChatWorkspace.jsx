@@ -32,67 +32,67 @@ import {
   Loader2,
   X,
   FileText,
-  Layout,
-  BarChart3,
-  Gamepad2,
-  Scan,
-  Database,
-  Store,
   Zap,
   MoreHorizontal,
   Layers,
-  SendHorizontal
+  SendHorizontal,
+  Code2,
+  Lightbulb,
+  Database,
+  HelpCircle,
+  CheckSquare,
+  Link
 } from 'lucide-react';
 
 const ROTATING_PLACEHOLDERS = [
   'Ask anything',
-  'Create a high-performance landing page...',
-  'Generate an interactive analytics dashboard...',
-  'Build a full-stack SaaS application with Supabase...',
+  'Optimize this function to reduce time complexity...',
+  'Outline the logic for a custom authentication flow...',
+  'Generate a PostgreSQL schema for an orders system...',
 ];
 
 const TEMPLATE_CARDS = [
   {
-    id: 'landing-page',
-    title: 'Create a landing page',
-    subtitle: 'Create a sleek, modern landing page',
-    prompt: 'Create a sleek, high-converting modern landing page for an AI developer platform with hero, features, and pricing.',
-    icon: Layout,
+    id: 'refactor-code',
+    title: 'Refactor Code',
+    subtitle: 'Optimize and clean up existing functions',
+    prompt: 'Refactor the following function to improve readability, performance, and handle edge cases gracefully:\n\n```js\n\n```',
+    icon: Code2,
   },
   {
-    id: 'dashboard',
-    title: 'Build a dashboard',
-    subtitle: 'Turn data into interactive charts',
-    prompt: 'Build an interactive SaaS analytics dashboard with real-time charts, metrics cards, and recent user activity.',
-    icon: BarChart3,
+    id: 'brainstorm-logic',
+    title: 'Brainstorm Logic',
+    subtitle: 'Outline algorithms or system design',
+    prompt: 'Help me draft a clear, step-by-step algorithm and system architecture for implementing a real-time multiplayer notification system.',
+    icon: Lightbulb,
   },
   {
-    id: 'game',
-    title: 'Make a game',
-    subtitle: 'Build a playable browser game',
-    prompt: 'Create a complete, fun and playable arcade browser game with high scores and keyboard controls.',
-    icon: Gamepad2,
-  },
-  {
-    id: 'design-to-code',
-    title: 'Design to Code',
-    subtitle: 'Upload an image and have AI build it',
-    prompt: 'Convert the following UI mockups into clean, responsive Tailwind CSS components with accessible markup.',
-    icon: Scan,
-  },
-  {
-    id: 'fullstack-app',
-    title: 'Build a fullstack app',
-    subtitle: 'Create a templated full-stack app',
-    prompt: 'Architect and generate a complete full-stack web application with Supabase auth, database RLS, and React frontend.',
+    id: 'database-schema',
+    title: 'Database Schema',
+    subtitle: 'Design tables and define relationships',
+    prompt: 'Design a clean relational database schema for an e-commerce platform with users, orders, products, and checkout logs, including foreign key relationships and indexing suggestions.',
     icon: Database,
   },
   {
-    id: 'storefront',
-    title: 'Launch a storefront',
-    subtitle: 'Create a beautiful online shop',
-    prompt: 'Design a high-end luxury e-commerce storefront with product filters, cart drawer, and checkout flow.',
-    icon: Store,
+    id: 'explain-concepts',
+    title: 'Explain Concepts',
+    subtitle: 'Break down complex architectural designs',
+    prompt: 'Explain the difference between JWT sessions and Database sessions, outlining security, performance trade-offs, and scalability implications.',
+    icon: HelpCircle,
+  },
+  {
+    id: 'unit-tests',
+    title: 'Write Unit Tests',
+    subtitle: 'Generate comprehensive testing suites',
+    prompt: 'Generate robust unit tests covering success, validation failures, and edge cases for the following function:\n\n```js\n\n```',
+    icon: CheckSquare,
+  },
+  {
+    id: 'api-integration',
+    title: 'API Integration',
+    subtitle: 'Connect webhooks and standard protocols',
+    prompt: 'Show me an idiomatic integration pattern for handling Stripe webhooks securely in a Node.js endpoint, including signature verification and event handling.',
+    icon: Link,
   },
 ];
 
@@ -119,9 +119,9 @@ export default function ChatWorkspace({ onCreditDeducted }) {
     id: 'olai-m1',
     name: 'Olai M1',
     provider: 'gemini',
-    rawModel: 'gemini-2.0-flash',
+    rawModel: 'gemini-2.5-flash',
     isPlatform: true,
-    creditCost: 'Default • High-speed platform intelligence',
+    creditCost: 'Default • High-speed',
   });
 
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
@@ -132,7 +132,7 @@ export default function ChatWorkspace({ onCreditDeducted }) {
       provider: 'gemini',
       rawModel: 'gemini-2.0-flash',
       isPlatform: true,
-      creditCost: 'Default • High-speed platform intelligence',
+      creditCost: 'Default • High-speed',
     },
   ]);
 
@@ -184,7 +184,7 @@ export default function ChatWorkspace({ onCreditDeducted }) {
           provider: 'gemini',
           rawModel: 'gemini-2.0-flash',
           isPlatform: true,
-          creditCost: 'Default • High-speed platform intelligence',
+          creditCost: 'Default • High-speed',
         },
       ];
 
@@ -202,7 +202,7 @@ export default function ChatWorkspace({ onCreditDeducted }) {
               provider: 'gemini',
               rawModel: modelName,
               isPlatform: false,
-              creditCost: 'Custom Key • Google AI Ultra-low latency',
+              creditCost: 'Custom Key • Google AI',
             });
           });
         }
@@ -358,7 +358,7 @@ export default function ChatWorkspace({ onCreditDeducted }) {
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-y-auto bg-[#FAFAFA] dark:bg-[#0E0F12] transition-colors">
-      
+
       {/* Hidden File Input */}
       <input
         type="file"
@@ -389,11 +389,10 @@ export default function ChatWorkspace({ onCreditDeducted }) {
 
                   <div className={`flex flex-col space-y-1.5 max-w-[85%] sm:max-w-[75%] ${isUser ? 'items-end' : 'items-start'}`}>
                     <div
-                      className={`rounded-2xl px-4 py-3 text-xs sm:text-[13px] leading-relaxed shadow-xs ${
-                        isUser
-                          ? 'bg-slate-900 dark:bg-zinc-100 text-white dark:text-slate-900'
-                          : 'bg-white dark:bg-[#121316] text-slate-900 dark:text-zinc-100 border border-slate-200/80 dark:border-zinc-800'
-                      }`}
+                      className={`rounded-2xl px-4 py-3 text-xs sm:text-[13px] leading-relaxed shadow-xs ${isUser
+                        ? 'bg-slate-900 dark:bg-zinc-100 text-white dark:text-slate-900'
+                        : 'bg-white dark:bg-[#121316] text-slate-900 dark:text-zinc-100 border border-slate-200/80 dark:border-zinc-800'
+                        }`}
                     >
                       {msg.attachments && msg.attachments.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mb-2 pb-2 border-b border-white/20 dark:border-zinc-700">
@@ -470,13 +469,12 @@ export default function ChatWorkspace({ onCreditDeducted }) {
           CENTER HERO & PROMPT COMPOSER
           ========================================================================= */}
       <div
-        className={`relative z-20 flex w-full max-w-2xl flex-col mx-auto px-4 md:px-6 transition-all duration-300 ${
-          isInitialEmptyState
-            ? 'flex-1 items-center justify-center my-auto py-8'
-            : 'shrink-0 pb-6'
-        }`}
+        className={`relative z-20 flex w-full max-w-2xl flex-col mx-auto px-4 md:px-6 transition-all duration-300 ${isInitialEmptyState
+          ? 'flex-1 items-center justify-center my-auto py-8'
+          : 'shrink-0 pb-6'
+          }`}
       >
-        
+
         {/* Headline: "Experience the frontier" (Italics Serif) */}
         {isInitialEmptyState && (
           <div className="text-center mb-7 animate-in fade-in zoom-in-95 duration-300">
@@ -488,10 +486,10 @@ export default function ChatWorkspace({ onCreditDeducted }) {
 
         {/* Main Input Composer Card */}
         <div className="relative w-full rounded-2xl border border-slate-200/90 dark:border-zinc-800 bg-white dark:bg-[#121316] shadow-xs p-3 sm:p-3.5 transition-all">
-          
+
           {/* Top Line: Pen/Sparkle + Textarea */}
           <div className="flex items-start gap-2.5 pt-0.5">
-            <Sparkles className="h-4 w-4 text-slate-400 dark:text-zinc-500 mt-[3px] shrink-0 self-start" />
+            <Sparkles className="h-4 w-4 text-slate-400 dark:text-zinc-500 mt-[3.5px] shrink-0 self-start" />
             
             <div className="relative flex-1 min-h-[42px]">
               <textarea
@@ -505,9 +503,8 @@ export default function ChatWorkspace({ onCreditDeducted }) {
 
               {!prompt && (
                 <div
-                  className={`pointer-events-none absolute top-[1px] left-0 text-xs sm:text-[13.5px] text-slate-400 dark:text-zinc-500 transition-opacity duration-300 select-none ${
-                    isPlaceholderFading ? 'opacity-0' : 'opacity-100'
-                  }`}
+                  className={`pointer-events-none absolute top-[3px] left-0 text-xs sm:text-[13.5px] text-slate-400 dark:text-zinc-500 transition-opacity duration-300 select-none ${isPlaceholderFading ? 'opacity-0' : 'opacity-100'
+                    }`}
                 >
                   {ROTATING_PLACEHOLDERS[placeholderIndex]}
                 </div>
@@ -539,10 +536,10 @@ export default function ChatWorkspace({ onCreditDeducted }) {
 
           {/* Bottom Toolbar: Left Pills (App files, Olai M1, ...) and Right Buttons */}
           <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-slate-100 dark:border-zinc-800/70">
-            
+
             {/* Left Controls */}
             <div className="flex items-center gap-1.5">
-              
+
               {/* App files pill */}
               <button
                 type="button"
@@ -582,11 +579,10 @@ export default function ChatWorkspace({ onCreditDeducted }) {
                               setSelectedModel(m);
                               setIsModelDropdownOpen(false);
                             }}
-                            className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-medium transition-colors cursor-pointer ${
-                              isSelected
-                                ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-zinc-100'
-                                : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/60 hover:text-slate-900 dark:hover:text-zinc-200'
-                            }`}
+                            className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-medium transition-colors cursor-pointer ${isSelected
+                              ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-zinc-100'
+                              : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/60 hover:text-slate-900 dark:hover:text-zinc-200'
+                              }`}
                           >
                             <div className="flex flex-col text-left overflow-hidden">
                               <span className="truncate font-medium">{m.name}</span>
