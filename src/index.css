@@ -148,3 +148,8 @@ body {
   animation: liquidFlow 6s ease-in-out infinite;
 }
 
+/* AI thinking shimmer bar animation */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}

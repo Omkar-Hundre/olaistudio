@@ -446,19 +446,23 @@ export default function ChatWorkspace({
         onChunk: (_delta, accumulatedFullText) => {
           if (!firstChunkTime) {
             firstChunkTime = performance.now();
-            console.log(`[AI Performance] ⚡ TTFT (Time to First Token): ${Math.round(firstChunkTime - startTime)}ms`);
+            console.log(`[AI Performance] ⚡ TTFT: ${Math.round(firstChunkTime - startTime)}ms`);
           }
 
-          let cleanStreamingText = '';
-          
-          // If response is streaming JSON, extract greeting preview dynamically
+          // Always show raw streaming text live — strip JSON braces and keys for clean display
+          let cleanStreamingText = accumulatedFullText
+            .replace(/%%%SYSTEM_CMD%%%[\s\S]*$/, '')
+            .replace(/^\s*```(?:json)?\s*/i, '')
+            .replace(/\s*```\s*$/, '')
+            .replace(/^\s*\{\s*/, '')         // strip leading {
+            .replace(/^\s*"(?:greeting|questions|plan_markdown|request_type)"\s*:\s*/i, '')  // strip first JSON key
+            .replace(/^"/, '')               // strip leading quote
+            .trim();
+
+          // If greeting has been streamed, use it directly
           const greetingMatch = accumulatedFullText.match(/"greeting"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
           if (greetingMatch) {
-            cleanStreamingText = greetingMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
-          } else if (accumulatedFullText.trim().startsWith('{') || accumulatedFullText.trim().startsWith('```')) {
-            cleanStreamingText = 'Analyzing requirements and preparing questions...';
-          } else {
-            cleanStreamingText = accumulatedFullText.replace(/%%%SYSTEM_CMD%%%[\s\S]*$/, '').trim();
+            cleanStreamingText = greetingMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').trim();
           }
 
           setMessages((prev) => {
@@ -467,7 +471,7 @@ export default function ChatWorkspace({
               next[next.length - 1] = {
                 ...next[next.length - 1],
                 content: accumulatedFullText,
-                displayContent: cleanStreamingText,
+                displayContent: cleanStreamingText || accumulatedFullText.trim().slice(0, 300),
               };
             }
             return next;
@@ -693,30 +697,56 @@ export default function ChatWorkspace({
                         </div>
                       )}
 
-                      {!isUser && !msg.isStreaming && msg.durationMs && (
-                        <details className="mb-2 group">
-                          <summary className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300 cursor-pointer select-none list-none">
-                            <Sparkles className="h-3 w-3 text-amber-500" />
-                            <span>Completed in {(msg.durationMs / 1000).toFixed(1)}s</span>
-                            <ChevronDown className="h-3 w-3 transition-transform group-open:rotate-180 ml-0.5" />
-                          </summary>
-                          <div className="mt-1.5 pl-3 border-l-2 border-slate-200 dark:border-zinc-700 text-[11px] text-slate-500 dark:text-zinc-400 leading-relaxed">
-                            {msg.rawThinkingContent || `Response generated • ${Math.round(msg.durationMs)}ms total`}
+                      {/* Thinking gradient animation — shows while streaming */}
+                      {!isUser && msg.isStreaming && (
+                        <div className="w-full">
+                          {/* Gradient shimmer bar */}
+                          <div className="relative h-1 rounded-full overflow-hidden mb-3 bg-slate-100 dark:bg-zinc-800">
+                            <div
+                              className="absolute inset-y-0 left-0 w-1/2 rounded-full"
+                              style={{
+                                background: 'linear-gradient(90deg, transparent, #6366f1, #8b5cf6, #06b6d4, transparent)',
+                                animation: 'shimmer 1.6s ease-in-out infinite',
+                              }}
+                            />
                           </div>
-                        </details>
+                          {/* Live text preview */}
+                          <p className="whitespace-pre-wrap text-slate-700 dark:text-zinc-300 text-xs leading-relaxed">
+                            {msg.displayContent || (
+                              <span className="text-slate-400 dark:text-zinc-500 italic">Thinking...</span>
+                            )}
+                          </p>
+                        </div>
                       )}
 
-                      {!isUser && msg.isStreaming ? (
-                        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400 py-0.5">
-                          <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-700 dark:text-zinc-300" />
-                          <span className="font-medium text-slate-700 dark:text-zinc-300">
-                            {msg.displayContent || 'Reasoning through requirements...'}
-                          </span>
-                        </div>
-                      ) : (
-                        <p className="whitespace-pre-wrap">
-                          {msg.displayContent || msg.content}
-                        </p>
+                      {/* Completed response */}
+                      {(!isUser || isUser) && !msg.isStreaming && (
+                        <>
+                          {/* Timing dropdown — shown for any completed AI message */}
+                          {!isUser && (
+                            <details className="mb-2 group" open={false}>
+                              <summary className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300 cursor-pointer select-none list-none mb-1.5">
+                                <Sparkles className="h-3 w-3 text-violet-400" />
+                                <span>
+                                  {msg.durationMs
+                                    ? `Completed in ${(msg.durationMs / 1000).toFixed(1)}s`
+                                    : 'View details'}
+                                </span>
+                                <ChevronDown className="h-3 w-3 transition-transform duration-200 group-open:rotate-180 ml-0.5" />
+                              </summary>
+                              <div className="pl-3 border-l-2 border-violet-200 dark:border-violet-900/60 text-[11px] text-slate-500 dark:text-zinc-400 leading-relaxed py-1">
+                                {msg.rawThinkingContent
+                                  ? msg.rawThinkingContent
+                                  : msg.durationMs
+                                  ? `Response generated in ${Math.round(msg.durationMs)}ms`
+                                  : 'Loaded from session history'}
+                              </div>
+                            </details>
+                          )}
+                          <p className="whitespace-pre-wrap">
+                            {msg.displayContent || msg.content}
+                          </p>
+                        </>
                       )}
                     </div>
 
