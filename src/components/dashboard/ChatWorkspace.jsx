@@ -402,10 +402,15 @@ export default function ChatWorkspace({
       textareaRef.current.style.height = 'auto';
     }
 
+    // Build API payload: send human-readable displayContent for assistant turns
+    // so the AI sees clean conversation context, not raw JSON blobs
     const apiPayload = updatedHistory.map((m) => ({
       role: m.role,
-      content: m.content,
+      content: m.role === 'assistant'
+        ? (m.displayContent || m.content || '')
+        : m.content,
     }));
+
 
     let activeSessionId = sessionIdRef.current;
     if (!activeSessionId) {
