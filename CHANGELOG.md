@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.10.0] - 2026-08-29
 
 ### Added
+- **Full Database & UI Chat Deletion Action (`workflowService.js`, `Sidebar.jsx`, `ChatWorkspace.jsx`, `AppDashboard.jsx`)**:
+  - Implemented `deleteWorkflowSession(sessionId)` with cascading removal across `workflow_node_dependencies`, `workflow_nodes`, and `workflow_sessions` tables in Supabase.
+  - Added a hover delete button (`Trash2`) on recent chat items in `Sidebar.jsx` with confirmation prompt.
+  - Added a **"Delete Chat"** action button in the active session header in `ChatWorkspace.jsx`, automatically resetting live state and redirecting to a clean new chat.
 - **Rich Document Markdown Renderer (`MarkdownRenderer.jsx`, `VisionCard.jsx`, `ChatWorkspace.jsx`)**:
   - Implemented a zero-dependency, high-performance `MarkdownRenderer` component that transforms raw Markdown text into structured typography: styled H1-H4 headings with badges, key-value property callouts (`* **Key:** Value`), nested bullet points, checklists (`✓`, `[x]`), responsive tables (`| Col 1 | Col 2 |`), code blocks, and horizontal dividers, replacing plain `whitespace-pre-wrap` text across `VisionCard` and assistant chat messages.
 - **Ultra-Fast Generation Latency with Gemini 3.6 Flash (`platform_models`, `platformModelService.js`, `ai-proxy`)**:

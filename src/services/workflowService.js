@@ -90,6 +90,42 @@ export async function getUserWorkflowSessions(userId) {
 }
 
 /**
+ * Deletes a workflow session and all related nodes and dependencies from Supabase
+ * @param {string} sessionId
+ * @returns {Promise<{ success: boolean, error: string | null }>}
+ */
+export async function deleteWorkflowSession(sessionId) {
+  if (!sessionId) return { success: false, error: 'Session ID required' };
+  try {
+    // 1. Delete node dependencies
+    const { error: depErr } = await supabase
+      .from('workflow_node_dependencies')
+      .delete()
+      .eq('session_id', sessionId);
+    if (depErr) console.warn('[Workflow] Delete dependencies warning:', depErr);
+
+    // 2. Delete child nodes
+    const { error: nodeErr } = await supabase
+      .from('workflow_nodes')
+      .delete()
+      .eq('session_id', sessionId);
+    if (nodeErr) console.warn('[Workflow] Delete nodes warning:', nodeErr);
+
+    // 3. Delete session record
+    const { error: sessionErr } = await supabase
+      .from('workflow_sessions')
+      .delete()
+      .eq('id', sessionId);
+
+    if (sessionErr) throw sessionErr;
+    return { success: true, error: null };
+  } catch (err) {
+    console.error('Error deleting workflow session:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
  * Saves/upserts the full root conversation history into workflow_nodes and workflow_sessions
  * @param {Object} params
  * @returns {Promise<{ success: boolean, error: string | null }>}

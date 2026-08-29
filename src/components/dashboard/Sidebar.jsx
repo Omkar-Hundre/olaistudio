@@ -24,6 +24,7 @@ import {
   LogOut,
   ChevronDown,
   Clock,
+  Trash2,
   PanelLeftClose,
   PanelLeftOpen
 } from 'lucide-react';
@@ -37,6 +38,7 @@ export default function Sidebar({
   previousProjects = [],
   onNewChat,
   onSelectProject,
+  onDeleteProject,
   activeProjectId,
 }) {
   const { user, profile, signOut } = useAuth();
@@ -191,27 +193,47 @@ export default function Sidebar({
                 previousProjects.map((project) => {
                   const isSelected = activeProjectId === project.id;
                   return (
-                    <button
+                    <div
                       key={project.id}
-                      type="button"
-                      onClick={() => {
-                        if (onSelectProject) onSelectProject(project.id);
-                        if (onCloseMobile) onCloseMobile();
-                      }}
-                      className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[12.5px] transition-colors text-left ${
+                      className={`group flex items-center justify-between gap-1.5 rounded-lg px-2.5 py-1.5 text-[12.5px] transition-colors ${
                         isSelected
                           ? 'bg-slate-200/80 dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 font-medium'
                           : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-200/50 dark:hover:bg-zinc-800/60 hover:text-slate-900 dark:hover:text-zinc-200'
                       }`}
-                      title={project.title || project.name || 'Untitled Project'}
                     >
-                      <Clock className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-zinc-500" />
-                      {!isCollapsed && (
-                        <span className="truncate flex-1">
-                          {project.title || project.name || 'Untitled Project'}
-                        </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (onSelectProject) onSelectProject(project.id);
+                          if (onCloseMobile) onCloseMobile();
+                        }}
+                        className="flex flex-1 items-center gap-2.5 overflow-hidden text-left cursor-pointer min-w-0"
+                        title={project.title || project.name || 'Untitled Project'}
+                      >
+                        <Clock className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-zinc-500" />
+                        {!isCollapsed && (
+                          <span className="truncate flex-1">
+                            {project.title || project.name || 'Untitled Project'}
+                          </span>
+                        )}
+                      </button>
+
+                      {!isCollapsed && onDeleteProject && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`Delete "${project.title || 'this chat'}"? This action cannot be undone.`)) {
+                              onDeleteProject(project.id);
+                            }
+                          }}
+                          className="opacity-0 group-hover:opacity-100 hover:text-red-600 dark:hover:text-red-400 p-1 rounded hover:bg-slate-300/50 dark:hover:bg-zinc-700/50 transition-all cursor-pointer shrink-0"
+                          title="Delete chat"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       )}
-                    </button>
+                    </div>
                   );
                 })
               )}

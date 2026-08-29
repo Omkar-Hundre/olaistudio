@@ -17,7 +17,7 @@ import Sidebar from './Sidebar';
 import SettingsModal from '../settings/SettingsModal';
 import ChatWorkspace from './ChatWorkspace';
 import { ThemePillSwitch } from '../common/ThemeToggle';
-import { getUserWorkflowSessions } from '../../services/workflowService';
+import { getUserWorkflowSessions, deleteWorkflowSession } from '../../services/workflowService';
 import {
   Menu,
   ChevronDown,
@@ -98,6 +98,23 @@ export default function AppDashboard() {
     }
   };
 
+  const handleDeleteSession = async (sessionIdToDelete) => {
+    if (!sessionIdToDelete) return;
+    const { success, error } = await deleteWorkflowSession(sessionIdToDelete);
+    if (success) {
+      setSessions((prev) => prev.filter((s) => s.id !== sessionIdToDelete));
+      if (activeSessionId === sessionIdToDelete) {
+        setActiveSessionId(null);
+        if (typeof window !== 'undefined') {
+          window.history.pushState(null, '', '/');
+        }
+      }
+    } else {
+      console.error('Failed to delete session:', error);
+      alert('Failed to delete chat: ' + (error || 'Unknown error'));
+    }
+  };
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[#F8F9FA] dark:bg-[#13151A] text-slate-900 dark:text-zinc-100 font-sans antialiased transition-colors duration-200">
       {/* Centralized Settings Dialog */}
@@ -118,6 +135,7 @@ export default function AppDashboard() {
         previousProjects={sessions}
         onNewChat={handleNewChat}
         onSelectProject={handleSelectSession}
+        onDeleteProject={handleDeleteSession}
         activeProjectId={activeSessionId}
       />
 
@@ -214,6 +232,7 @@ export default function AppDashboard() {
               setCreditRefreshTrigger((prev) => prev + 1);
               loadSessions();
             }}
+            onDeleteSession={handleDeleteSession}
           />
         </main>
       </div>
