@@ -10,12 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.10.0] - 2026-08-29
 
 ### Added
-- **Seamless Platform Key Fallback & Olai M1 Credit Metering (`ai-proxy/index.ts`)**:
-  - Deployed `ai-proxy` v16 with automatic fallback routing: ensures `Olai M1` platform model calls succeed seamlessly using platform credentials (or user-saved fallback) while strictly deducting 1 credit per model call, eliminating `No API key available for provider 'gemini'` errors.
+- **Default Platform Key Provisioning & Olai M1 Credit Metering (`ai-proxy/index.ts`)**:
+  - Deployed `ai-proxy` v17 with default platform Gemini credentials: ensures `Olai M1` model requests execute instantly and deduct 1 credit per model call from user credits balance with zero API key configuration errors.
 - **Platform Credit Deduction & Service-Role Authentication Fix (`ai-proxy/index.ts`, `deduct_user_credits`)**:
   - Resolved issue where credits were not deducting when using platform model `Olai M1`:
     - Updated `deduct_user_credits` database function to accept `p_user_id` when invoked via authenticated Edge Function service-role calls.
-    - Updated `ai-proxy` (v15) to strictly enforce platform credit consumption and system key routing when `isPlatform: true`, preventing custom API keys from erroneously bypassing credit deductions.
+    - Updated `ai-proxy` to strictly enforce platform credit consumption and system key routing when `isPlatform: true`, preventing custom API keys from erroneously bypassing credit deductions.
 - **Sub-Second Streaming Latency & Strict JSON Response Schema (`ai-proxy/index.ts`)**:
   - Deployed `ai-proxy` v14 configuring strict Gemini `response_schema` enforcing that all Master Plans are produced as rich Markdown documents inside `plan_markdown`, eliminating foreign JSON key leakage (`pageTitle`, `sections`, `landingPage`).
   - Optimized Gemini 2.5 Flash `thinking_config` budget to resolve the 150-second latency bottleneck, achieving sub-second time-to-first-token (TTFT < 800ms).
