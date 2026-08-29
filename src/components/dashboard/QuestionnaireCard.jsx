@@ -2,10 +2,11 @@
  * ==============================================================================
  * Component: QuestionnaireCard
  * ==============================================================================
- * Interactive 4-Option Stepper Questionnaire for Mother Agent "Grill-Me" interviews:
+ * Interactive 4-Option Stepper Questionnaire for Mother Agent interviews:
  * - Displays 1 question at a time with clean step indicators
  * - 3 pre-suggested structured choices + 1 custom write-in input box
  * - Sleek minimal SaaS design with smooth transitions and Back/Next/Submit navigation
+ * - No technical AI jargon (Rule 16)
  * ==============================================================================
  */
 
@@ -58,13 +59,12 @@ export default function QuestionnaireCard({ questions = [], onSubmit, isSending 
   };
 
   const handleSubmitAll = () => {
-    // Compile all questions and answers into a clean, structured turn
     const compiledParts = questions.map((q, idx) => {
-      const ans = answers[q.id] || 'Default / Recommended best practices';
+      const ans = answers[q.id] || 'Recommended default';
       return `${idx + 1}. ${q.question}\n→ Selected: ${ans}`;
     });
 
-    const finalResponse = `Here are my clarified specifications:\n\n${compiledParts.join('\n\n')}`;
+    const finalResponse = `Here are my choices:\n\n${compiledParts.join('\n\n')}`;
     if (onSubmit) {
       onSubmit(finalResponse);
     }
@@ -78,7 +78,7 @@ export default function QuestionnaireCard({ questions = [], onSubmit, isSending 
       <div className="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800/60 pb-3 mb-4">
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-semibold text-slate-900 dark:text-zinc-100 uppercase tracking-wider">
-            Clarification Stepper
+            Project Details
           </span>
           <span className="text-[10.5px] text-slate-400 dark:text-zinc-500">
             • Question {currentIndex + 1} of {totalQuestions}
@@ -157,7 +157,7 @@ export default function QuestionnaireCard({ questions = [], onSubmit, isSending 
             type="text"
             value={currentCustomText}
             onChange={handleCustomInputChange}
-            placeholder="Type your own custom requirement or constraint..."
+            placeholder="Type your own custom requirement..."
             className="w-full bg-transparent border-0 px-1 py-1 text-xs text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-600 focus:outline-hidden focus:ring-0"
           />
         </div>
@@ -193,7 +193,7 @@ export default function QuestionnaireCard({ questions = [], onSubmit, isSending 
               disabled={!isCurrentAnswered || isSending}
               className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium bg-slate-900 dark:bg-zinc-100 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-zinc-200 transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
             >
-              <span>Submit Clarifications</span>
+              <span>Submit</span>
               <SendHorizontal className="h-3.5 w-3.5" />
             </button>
           )}

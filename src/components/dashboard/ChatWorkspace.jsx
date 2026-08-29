@@ -648,7 +648,6 @@ export default function ChatWorkspace({ onCreditDeducted }) {
                 ctaLabel={ctaLabel}
                 onProceed={() => {
                   setIsExecuting(true);
-                  setErrorMessage('Vision approved. Ready to deploy multi-level execution graph in Phase 4.');
                 }}
                 isExecuting={isExecuting}
               />

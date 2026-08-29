@@ -2,10 +2,10 @@
  * ==============================================================================
  * Component: VisionCard
  * ==============================================================================
- * Renders the synthesized Master Vision document in a formatted card:
+ * Renders the synthesized Project Plan document in a formatted card:
  * - Clean document layout with copy support
- * - Dynamic Action CTA button (e.g., 'Cook & Build ⚡', 'Begin Execution 🚀')
- *   derived directly from the Mother Agent API response
+ * - Single-word dynamic action button (e.g., 'Cook', 'Build', 'Start', 'Begin')
+ *   strictly adhering to Rule 16 (No technical jargon)
  * ==============================================================================
  */
 
@@ -14,7 +14,7 @@ import { Sparkles, Copy, Check, ArrowRight, FileText } from 'lucide-react';
 
 export default function VisionCard({
   visionContent,
-  ctaLabel = 'Cook & Build ⚡',
+  ctaLabel = 'Cook',
   onProceed,
   isExecuting = false,
 }) {
@@ -26,6 +26,11 @@ export default function VisionCard({
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  // Rule 16: Ensure single-word action label with no emojis or jargon sentences
+  const singleWordCta = typeof ctaLabel === 'string'
+    ? ctaLabel.trim().split(/[\s&⚡🚀]+/)[0] || 'Cook'
+    : 'Cook';
 
   if (!visionContent) return null;
 
@@ -39,10 +44,10 @@ export default function VisionCard({
           </div>
           <div>
             <h3 className="text-xs sm:text-[13px] font-semibold text-slate-900 dark:text-zinc-100">
-              Master Project Vision
+              Project Plan
             </h3>
             <p className="text-[10.5px] text-slate-400 dark:text-zinc-500">
-              Synthesized by Mother Agent with 85%+ alignment confidence
+              Plan ready for review
             </p>
           </div>
         </div>
@@ -54,7 +59,7 @@ export default function VisionCard({
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-medium text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700/60 transition-colors cursor-pointer"
         >
           {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
-          <span>{copied ? 'Copied' : 'Copy Vision'}</span>
+          <span>{copied ? 'Copied' : 'Copy'}</span>
         </button>
       </div>
 
@@ -63,20 +68,20 @@ export default function VisionCard({
         {visionContent}
       </div>
 
-      {/* Action Footer with Dynamic CTA */}
+      {/* Action Footer with Single-Word CTA */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 border-t border-slate-100 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/30">
         <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-zinc-400">
           <FileText className="h-3.5 w-3.5" />
-          <span>Vision approved. Ready to deploy multi-level execution graph.</span>
+          <span>Plan finalized. Ready to proceed.</span>
         </div>
 
         <button
           type="button"
           onClick={onProceed}
           disabled={isExecuting}
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 dark:bg-zinc-100 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-zinc-200 text-xs font-semibold shadow-sm transition-all cursor-pointer disabled:opacity-50"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-6 py-2.5 rounded-xl bg-slate-900 dark:bg-zinc-100 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-zinc-200 text-xs font-semibold shadow-sm transition-all cursor-pointer disabled:opacity-50"
         >
-          <span>{ctaLabel}</span>
+          <span>{singleWordCta}</span>
           <ArrowRight className="h-3.5 w-3.5" />
         </button>
       </div>

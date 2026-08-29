@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.9.0] - 2026-08-29
 
 ### Added
+- **AI Jargon Elimination & Single-Word Action Buttons (Rule 16)**:
+  - Added strict project Rule 16 forbidding AI technical jargon (e.g. "multi-level execution graph", "DAG", "orchestration payload") in user-facing UI and messages.
+  - Enforced single-word clean action buttons (e.g., "Cook", "Build", "Start", "Begin", "Submit").
+  - Simplified copy across `VisionCard.jsx`, `QuestionnaireCard.jsx`, and `workspace_modes` system prompts.
 - **Interactive 4-Option Questionnaire Stepper (`QuestionnaireCard.jsx`)**:
   - Implemented 1-question-at-a-time interactive stepper containing 3 tailored structured options + 1 custom write-in input box.
   - Added smooth Back/Next navigation and single-turn consolidated submission to minimize API token calls.

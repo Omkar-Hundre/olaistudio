@@ -70,3 +70,6 @@ Follow these strict constraints when working on the Olai project:
 ## 15. Background Processing & Idempotency
 - **All workflow orchestration is managed via database state + edge functions.** Once a user clicks "Proceed", the workflow session is marked `executing` in the database with an idempotency key. Edge functions poll/react to pending nodes and process them.
 - **Browser-independent execution**: The user can close their browser. When they return, the UI reads the current state from the database and renders the latest results. No client-side state is required for workflow progress.
+
+## 16. No AI Technical Jargon
+- **NO technical AI jargon in user-facing UI or messages.** Terminology like 'multi-level execution graph', 'DAG', 'orchestration payload', 'Level 3 memory', 'decomposition', etc., must NEVER be shown to the user. Keep all UI copy, error messages, placeholders, and descriptions simple, clear, and human-friendly.
