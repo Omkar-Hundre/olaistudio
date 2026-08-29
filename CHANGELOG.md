@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.10.0] - 2026-08-29
+
+### Added
+- **Unbuffered Instant SSE Streaming & Deployed AI Proxy v10 (`ai-proxy/index.ts`)**:
+  - Removed internal `response_mime_type: "application/json"` from Gemini upstream requests to eliminate the 120-second buffering delay and achieve sub-second TTFT (~500ms).
+  - Deployed `ai-proxy` v10 with JWT authentication context, allowing `deduct_user_credits` RPC to accurately resolve `auth.uid()` and atomically deduct platform credits.
+- **Three-Level Memory Architecture & Dynamic Context Delivery (`ChatWorkspace.jsx`, `aiProxyService.js`)**:
+  - Wired Level 1 (live message turns), Level 2 (root node conversation history & hidden commands), and Level 3 (project vision, branch focus, and confidence scores).
+  - Provided `globalContext` and `parentContext` dynamically to the AI proxy on all turns.
+  - Sanitized multi-turn context by passing human-readable `displayContent` for assistant turns and stripping internal `[Mode: ...]` tags.
+- **Resilient Multi-Line Plan Extraction (`systemCommandParser.js`)**:
+  - Enhanced `safeJsonParse` with unescaped newline and quotation normalizers to reliably extract 600+ word structured project plans without token loss.
+  - Normalized all question key variants (`question_text`, `question_number`, `id`, `question`) to standard schema.
+- **Session History Normalization (`ChatWorkspace.jsx`)**:
+  - Automatically parses assistant messages upon database load to ensure clean, human-readable greetings are displayed instead of raw JSON strings.
+- **Vision Execution Handler (`VisionCard.jsx`, `ChatWorkspace.jsx`)**:
+  - Connected the single-word action trigger ("Cook") to update database session status to `executing` and dispatch automated phase decomposition.
+- **System Prompts & Mode Cache Synchronization (`workspaceModeService.js`, `workspace_modes`)**:
+  - Unified default fallback prompts across all modes to the pure JSON schema requiring 7 comprehensive plan sections.
+  - Added 5-minute cache TTL and explicit `invalidateWorkspaceModesCache()` helper to guarantee dynamic system prompt updates from Supabase are applied.
+
+---
+
 ## [2.9.0] - 2026-08-29
 
 ### Added

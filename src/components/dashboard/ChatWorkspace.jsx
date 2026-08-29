@@ -116,7 +116,20 @@ export default function ChatWorkspace({
         .then(({ data: nodes }) => {
           const rootNode = nodes?.[0];
           if (rootNode?.conversation_history && Array.isArray(rootNode.conversation_history)) {
-            setMessages(rootNode.conversation_history);
+            // Cleanly normalize restored history so JSON blobs are never displayed as raw text
+            const normalizedHistory = rootNode.conversation_history.map((msg) => {
+              if (msg.role === 'assistant') {
+                const needsExtraction = !msg.displayContent ||
+                  msg.displayContent.trim().startsWith('{') ||
+                  msg.displayContent.trim().startsWith('```');
+                if (needsExtraction && typeof msg.content === 'string') {
+                  const { cleanText } = parseSystemCommands(msg.content);
+                  return { ...msg, displayContent: cleanText || msg.content };
+                }
+              }
+              return msg;
+            });
+            setMessages(normalizedHistory);
           }
           if (rootNode?.hidden_commands) {
             const cmd = rootNode.hidden_commands;
@@ -404,13 +417,22 @@ export default function ChatWorkspace({
 
     // Build API payload: send human-readable displayContent for assistant turns
     // so the AI sees clean conversation context, not raw JSON blobs
-    const apiPayload = updatedHistory.map((m) => ({
-      role: m.role,
-      content: m.role === 'assistant'
+    // Strip technical [Mode: ...] tags from older user messages to reduce context noise
+    const apiPayload = updatedHistory.map((m) => {
+      let content = m.role === 'assistant'
         ? (m.displayContent || m.content || '')
-        : m.content,
-    }));
+        : (m.content || '');
 
+      // Strip technical [Mode: ...] prefix from user history
+      if (m.role === 'user' && typeof content === 'string') {
+        content = content.replace(/^\[Mode:\s*[^\]]+\]\n?/i, '').trim();
+      }
+
+      return {
+        role: m.role,
+        content,
+      };
+    });
 
     let activeSessionId = sessionIdRef.current;
     if (!activeSessionId) {
@@ -448,6 +470,8 @@ export default function ChatWorkspace({
         provider: selectedModel.provider,
         model: selectedModel.rawModel,
         systemPrompt: activeMode?.systemPrompt || '',
+        globalContext: visionContent ? `[Current Project Vision & Approved Plan]\n${visionContent}` : `[Project Focus]: ${sessionTitle || 'New Project'}`,
+        parentContext: currentBranch ? `[Current Focus Area]: ${currentBranch} (Alignment: ${alignmentScore || 35}%)` : '',
         onChunk: (_delta, accumulatedFullText) => {
           if (!firstChunkTime) {
             firstChunkTime = performance.now();
@@ -608,6 +632,26 @@ export default function ChatWorkspace({
     } finally {
       setIsSending(false);
     }
+  };
+
+  const handleProceedExecution = async () => {
+    if (isExecuting || !visionContent) return;
+    setIsExecuting(true);
+
+    const activeSessionId = sessionIdRef.current;
+    if (activeSessionId) {
+      // Mark workflow_sessions as executing
+      await updateWorkflowSession(activeSessionId, {
+        status: 'executing',
+        updated_at: new Date().toISOString(),
+      });
+    }
+
+    // Dispatch execution prompt to initiate stage execution
+    handleSendMessage(
+      `Plan finalized. Please decompose this plan into immediate implementation milestones:\n\n${visionContent}`,
+      "Plan approved. Let's begin building!"
+    );
   };
 
   const handleKeyDown = (e) => {
@@ -846,9 +890,7 @@ export default function ChatWorkspace({
               <VisionCard
                 visionContent={visionContent}
                 ctaLabel={ctaLabel}
-                onProceed={() => {
-                  setIsExecuting(true);
-                }}
+                onProceed={handleProceedExecution}
                 isExecuting={isExecuting}
               />
             )}

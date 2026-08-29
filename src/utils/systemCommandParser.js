@@ -28,7 +28,7 @@ export function safeJsonParse(raw) {
     return JSON.parse(clean);
   } catch {}
 
-  // 3. Remove trailing commas before closing braces/brackets
+  // 3. Remove trailing commas before closing braces/brackets and fix unescaped newlines in JSON strings
   try {
     const fixedTrailingCommas = clean
       .replace(/,\s*([\]}])/g, '$1')
@@ -36,7 +36,15 @@ export function safeJsonParse(raw) {
     return JSON.parse(fixedTrailingCommas);
   } catch {}
 
-  // 4. Regex extraction fallback
+  // 4. Try escaping unescaped newlines inside JSON string literals
+  try {
+    const fixedNewlines = clean.replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/gs, (match) => {
+      return match.replace(/\r?\n/g, '\\n').replace(/\t/g, '\\t');
+    });
+    return JSON.parse(fixedNewlines);
+  } catch {}
+
+  // 5. Regex extraction fallback
   try {
     const extracted = {};
 
@@ -64,12 +72,23 @@ export function safeJsonParse(raw) {
     const readyMatch = clean.match(/"ready_for_vision"\s*:\s*(true|false)/i);
     if (readyMatch) extracted.ready_for_vision = readyMatch[1].toLowerCase() === 'true';
 
-    const planMatch = clean.match(/"plan_markdown"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
+    // Resilient plan_markdown extractor (handles multi-line, escaped/unescaped)
+    const planMatch = clean.match(/"plan_markdown"\s*:\s*"([\s\S]*?)"\s*(?:,\s*"[a-zA-Z_]+"|\s*})/);
     if (planMatch) {
       try {
-        extracted.plan_markdown = JSON.parse(`"${planMatch[1]}"`);
+        extracted.plan_markdown = JSON.parse(`"${planMatch[1].replace(/\r?\n/g, '\\n')}"`);
       } catch {
-        extracted.plan_markdown = planMatch[1];
+        extracted.plan_markdown = planMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
+      }
+    } else {
+      // Fallback for plan_markdown if standard match misses
+      const altPlanMatch = clean.match(/"plan_markdown"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
+      if (altPlanMatch) {
+        try {
+          extracted.plan_markdown = JSON.parse(`"${altPlanMatch[1]}"`);
+        } catch {
+          extracted.plan_markdown = altPlanMatch[1];
+        }
       }
     }
 
