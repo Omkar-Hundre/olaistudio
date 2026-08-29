@@ -7,7 +7,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const PLATFORM_DEFAULT_GEMINI_KEY = Deno.env.get("GEMINI_API_KEY") || "AIzaSyChoZcloU55XtyvzNbPW8Kp7UQdBJ7ng4A";
+const PLATFORM_DEFAULT_GEMINI_KEY = Deno.env.get("GEMINI_API_KEY") || "";
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
