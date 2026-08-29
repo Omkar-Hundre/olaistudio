@@ -562,27 +562,20 @@ export default function ChatWorkspace({ onCreditDeducted }) {
             {/* Attached Full-Width Mode Bar */}
             {activeMode && (
               <div
-                className={`w-full px-4 py-2.5 flex items-center justify-between border-b border-slate-200/60 dark:border-zinc-800 bg-gradient-to-r ${activeMode.barGradient} animate-in slide-in-from-top-2 fade-in duration-300`}
+                className={`w-full px-4 py-2 flex items-center justify-between border-b border-slate-200/60 dark:border-zinc-800 bg-gradient-to-r ${activeMode.barGradient} animate-in slide-in-from-top-2 fade-in duration-300`}
               >
                 <div className="flex items-center gap-2 overflow-hidden">
-                  <div className="flex h-5 w-5 items-center justify-center rounded-md bg-slate-900/10 dark:bg-white/10 text-slate-800 dark:text-zinc-200 shrink-0">
-                    <activeMode.icon className="h-3.5 w-3.5" />
-                  </div>
-                  <div className="flex flex-col overflow-hidden">
-                    <span className="text-xs font-semibold text-slate-900 dark:text-zinc-100 truncate leading-tight">
-                      {activeMode.badge}
-                    </span>
-                    <span className="text-[10.5px] text-slate-500 dark:text-zinc-400 truncate leading-tight mt-0.5">
-                      {activeMode.subtitle}
-                    </span>
-                  </div>
+                  <activeMode.icon className="h-4 w-4 text-slate-700 dark:text-zinc-300 shrink-0" />
+                  <span className="text-xs font-semibold text-slate-900 dark:text-zinc-100 truncate">
+                    {activeMode.badge}
+                  </span>
                 </div>
 
                 {/* Dismiss Mode Button */}
                 <button
                   type="button"
                   onClick={() => setActiveMode(null)}
-                  className="flex h-5 w-5 items-center justify-center rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer shrink-0 ml-2"
+                  className="flex h-5 w-5 items-center justify-center rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer shrink-0"
                   title="Exit mode"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -743,47 +736,34 @@ export default function ChatWorkspace({ onCreditDeducted }) {
         </div>
 
         {/* =====================================================================
-            BELOW CARDS / 3 GENERAL SUGGESTIONS (VERTICAL STACK WITH LINE SEPARATOR)
+            BELOW CARDS / 3 GENERAL SUGGESTIONS (BORDERLESS VERTICAL STACK)
             ===================================================================== */}
         {isInitialEmptyState && (
-          <div className="w-full mt-4">
+          <div className="w-full mt-3">
             {activeMode ? (
-              /* 3 General Suggestions in a Vertical Stack with only Line Separators */
-              <div className="w-full rounded-2xl bg-white/70 dark:bg-[#121316]/70 backdrop-blur-md border border-slate-200/70 dark:border-zinc-800/80 p-1.5 animate-in fade-in slide-in-from-bottom-2 duration-300 shadow-2xs">
-                <div className="px-3 py-1.5 flex items-center justify-between text-[11px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
-                  <span>{activeMode.name} Suggestions</span>
+              /* 3 General Suggestions in a pure Vertical Stack with line dividers only */
+              <div className="w-full divide-y divide-slate-200/60 dark:divide-zinc-800/70 px-1 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                {activeMode.suggestions.slice(0, 3).map((suggestion, idx) => (
                   <button
+                    key={idx}
                     type="button"
-                    onClick={() => setActiveMode(null)}
-                    className="text-slate-500 hover:text-slate-800 dark:hover:text-zinc-200 font-normal capitalize cursor-pointer text-xs"
+                    onClick={() => {
+                      setPrompt(suggestion);
+                      textareaRef.current?.focus();
+                    }}
+                    className="w-full flex items-center justify-between py-2 px-2 text-left text-xs text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-100/50 dark:hover:bg-zinc-800/40 rounded-md transition-colors cursor-pointer group"
                   >
-                    View all modes
+                    <div className="flex items-center gap-2 overflow-hidden pr-2">
+                      <span className="text-slate-400 dark:text-zinc-500 text-xs shrink-0 group-hover:text-slate-700 dark:group-hover:text-zinc-200">
+                        ✦
+                      </span>
+                      <span className="truncate">
+                        {suggestion}
+                      </span>
+                    </div>
+                    <ArrowUp className="h-3.5 w-3.5 opacity-0 -rotate-45 group-hover:opacity-100 text-slate-400 dark:text-zinc-500 transition-all shrink-0" />
                   </button>
-                </div>
-
-                <div className="divide-y divide-slate-100 dark:divide-zinc-800/70">
-                  {activeMode.suggestions.slice(0, 3).map((suggestion, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => {
-                        setPrompt(suggestion);
-                        textareaRef.current?.focus();
-                      }}
-                      className="w-full flex items-center justify-between px-3 py-2.5 text-left text-xs text-slate-700 dark:text-zinc-300 hover:bg-slate-100/70 dark:hover:bg-zinc-800/60 rounded-lg transition-colors cursor-pointer group"
-                    >
-                      <div className="flex items-center gap-2.5 overflow-hidden pr-2">
-                        <span className="text-slate-400 dark:text-zinc-500 text-xs shrink-0 group-hover:text-slate-800 dark:group-hover:text-zinc-100 transition-colors">
-                          ✦
-                        </span>
-                        <span className="truncate group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
-                          {suggestion}
-                        </span>
-                      </div>
-                      <ArrowUp className="h-3.5 w-3.5 opacity-0 -rotate-45 group-hover:opacity-100 text-slate-400 dark:text-zinc-500 transition-all shrink-0" />
-                    </button>
-                  ))}
-                </div>
+                ))}
               </div>
             ) : (
               /* 4 Core Purpose-Driven Mode Cards */
@@ -800,9 +780,7 @@ export default function ChatWorkspace({ onCreditDeducted }) {
                       }}
                       className="flex items-start gap-3 rounded-xl border border-slate-200/80 dark:border-zinc-800/90 bg-white dark:bg-[#121316] p-3 text-left transition-all hover:border-slate-300 dark:hover:border-zinc-700 hover:shadow-2xs active:scale-[0.99] cursor-pointer group"
                     >
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-200/70 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 group-hover:text-slate-900 dark:group-hover:text-zinc-100 transition-colors mt-0.5">
-                        <Icon className="h-3.5 w-3.5" />
-                      </div>
+                      <Icon className="h-4 w-4 text-slate-500 dark:text-zinc-400 group-hover:text-slate-900 dark:group-hover:text-zinc-100 transition-colors mt-0.5 shrink-0" />
                       <div className="flex flex-col overflow-hidden">
                         <span className="text-xs font-semibold text-slate-800 dark:text-zinc-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors truncate">
                           {mode.title}
