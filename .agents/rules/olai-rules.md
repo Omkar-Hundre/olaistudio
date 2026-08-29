@@ -30,3 +30,6 @@ Follow these strict constraints when working on the Olai project:
 ## 7. Custom credentials provided.
 - ** When I provide any credentials for any platform please test those credentials first if those are working and if those are working then include it into the application.**
 - ** Store them securely using superbase edge function And please don't put load over superbase if it can be done using just one function then use that one function itself instead of writing hundreds of API calls or hundreds of edge function calls for different different functions and Apis Keep the system lightweight and as fast as possible and optimized.**
+
+## 8. All codes written should follow industry standards.
+- ** All the codes that you have been writing should follow the industry standards with proper comments and structure as we have decided earlier Properly place the UI logic business logic and other logics in different different sections so that it is easier to manage and we keep the system modular and lightweight.**

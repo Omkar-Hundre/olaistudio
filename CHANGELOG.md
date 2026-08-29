@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.9.0] - 2026-08-29
 
 ### Added
+- **Platform Gemini Key & Edge Function Deployment (v3)**:
+  - Validated and updated default platform API key in the serverless `ai-proxy` Edge Function.
+  - Upgraded default `Olai M1` model to `gemini-2.5-flash` in `public.platform_models` table.
 - **Secure AWS S3 Integration via Edge Function**:
   - Built a secure Supabase Edge Function (`s3-upload-url`) to generate pre-signed upload URLs, fully decoupling AWS secrets from the frontend bundle.
   - Implemented `s3Service.js` to execute Just-In-Time (JIT) uploads to the `olai` bucket exactly when the user clicks "Send", rather than blindly uploading upon attachment.
