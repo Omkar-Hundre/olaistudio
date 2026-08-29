@@ -15,7 +15,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { sendProxyChatMessage } from '../../services/aiProxyService';
+import { sendProxyChatMessage, sendStreamingProxyChatMessage } from '../../services/aiProxyService';
 import { getUserApiKeys } from '../../services/apiKeyService';
 import * as modelHealthService from '../../services/modelHealthService';
 import { getWorkspaceModes, DEFAULT_WORKSPACE_MODES } from '../../services/workspaceModeService';
@@ -312,8 +312,16 @@ export default function ChatWorkspace({ onCreditDeducted }) {
       timestamp: new Date().toISOString(),
     };
 
+    const assistantPlaceholder = {
+      role: 'assistant',
+      content: '',
+      modelName: selectedModel.name,
+      timestamp: new Date().toISOString(),
+      isStreaming: true,
+    };
+
     const updatedHistory = [...messages, userMessage];
-    setMessages(updatedHistory);
+    setMessages([...updatedHistory, assistantPlaceholder]);
     setPrompt('');
     setAttachments([]);
     if (textareaRef.current) {
@@ -325,30 +333,54 @@ export default function ChatWorkspace({ onCreditDeducted }) {
       content: m.content,
     }));
 
-    const result = await sendProxyChatMessage({
+    await sendStreamingProxyChatMessage({
       messages: apiPayload,
       provider: selectedModel.provider,
       model: selectedModel.rawModel,
       systemPrompt: activeMode?.systemPrompt || '',
+      onChunk: (_delta, accumulatedFullText) => {
+        setMessages((prev) => {
+          const next = [...prev];
+          if (next.length > 0) {
+            next[next.length - 1] = {
+              ...next[next.length - 1],
+              content: accumulatedFullText,
+            };
+          }
+          return next;
+        });
+      },
+      onDone: ({ fullText }) => {
+        setIsSending(false);
+        setMessages((prev) => {
+          const next = [...prev];
+          if (next.length > 0) {
+            next[next.length - 1] = {
+              ...next[next.length - 1],
+              content: fullText,
+              isStreaming: false,
+            };
+          }
+          return next;
+        });
+
+        if (onCreditDeducted && selectedModel.isPlatform) {
+          onCreditDeducted();
+        }
+      },
+      onError: (err) => {
+        setIsSending(false);
+        setErrorMessage(err);
+        // Remove empty assistant placeholder if failed completely
+        setMessages((prev) => {
+          const last = prev[prev.length - 1];
+          if (last && last.role === 'assistant' && !last.content) {
+            return prev.slice(0, -1);
+          }
+          return prev;
+        });
+      },
     });
-
-    setIsSending(false);
-
-    if (result.error) {
-      setErrorMessage(result.error);
-    } else {
-      const assistantMessage = {
-        role: 'assistant',
-        content: result.reply,
-        modelName: selectedModel.name,
-        timestamp: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
-
-      if (onCreditDeducted && selectedModel.isPlatform) {
-        onCreditDeducted();
-      }
-    }
   };
 
   const handleKeyDown = (e) => {
@@ -427,7 +459,16 @@ export default function ChatWorkspace({ onCreditDeducted }) {
                         </div>
                       )}
 
-                      <p className="whitespace-pre-wrap">{msg.displayContent || msg.content}</p>
+                      <p className="whitespace-pre-wrap">
+                        {msg.displayContent || msg.content || (msg.isStreaming ? (
+                          <span className="inline-flex items-center gap-1.5 text-slate-400 dark:text-zinc-500 italic">
+                            <Loader2 className="h-3 w-3 animate-spin" /> Thinking...
+                          </span>
+                        ) : '')}
+                        {msg.isStreaming && msg.content && (
+                          <span className="inline-block w-1.5 h-3.5 bg-slate-700 dark:bg-zinc-300 ml-0.5 animate-pulse align-middle" />
+                        )}
+                      </p>
                     </div>
 
                     <div className="flex items-center gap-2 px-1 text-[10px] text-slate-400 dark:text-zinc-500">
@@ -461,7 +502,7 @@ export default function ChatWorkspace({ onCreditDeducted }) {
               );
             })}
 
-            {isSending && (
+            {isSending && !messages[messages.length - 1]?.isStreaming && (
               <div className="flex items-center gap-3 animate-in fade-in">
                 <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 dark:bg-zinc-100 text-white dark:text-slate-900 text-xs">
                   <Bot className="h-4 w-4" />

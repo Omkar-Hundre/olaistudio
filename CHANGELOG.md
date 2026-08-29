@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.9.0] - 2026-08-29
 
 ### Added
+- **Real-Time Typewriter Response Streaming (`ai-proxy` v6 & `ChatWorkspace.jsx`)**:
+  - Implemented Server-Sent Events (SSE) streaming support across Google Gemini (`streamGenerateContent`) and OpenAI in the `ai-proxy` Edge Function.
+  - Added `sendStreamingProxyChatMessage` in `aiProxyService.js` and connected live typewriter rendering with animated cursor in `ChatWorkspace.jsx`.
+  - Enforced upfront authentication and atomic credit deduction via `deduct_user_credits` prior to stream initialization.
 - **Token Budget Calculator & Context Window Guard (`tokenBudget.js`)**:
   - Implemented client-side context window monitor strictly enforcing Rule 9 across all model providers (`gemini-2.5-flash` 1M, `gpt-4o` 128k, `claude-3-5-sonnet` 200k).
   - Guarantees user prompts are 100% protected and never truncated under any condition.
