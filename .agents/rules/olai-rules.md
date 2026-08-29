@@ -40,7 +40,12 @@ Follow these strict constraints when working on the Olai project:
 
 ## 10. Credit Security & Nomenclature
 - **Credits use cryptographic `token_hash` (vault-salted) for tamper detection.** All deductions go through atomic `SECURITY DEFINER` stored procedures (`deduct_user_credits`). Never bypass this with direct UPDATE statements.
-- **Per-node credit deduction**: Each child node API call deducts credits independently through the same secured procedure. Track `credits_consumed` on each `workflow_node` row.
+- **Per-API-Call credit deduction**: Every single AI model invocation costs 1 credit:
+  - Mother Agent node creation / decomposition API call: 1 credit.
+  - Child node execution API call: 1 credit.
+  - Individual node update / follow-up prompt API call: 1 credit.
+  - Merge / synthesis API call: 1 credit.
+- **Audit tracking**: Track `credits_consumed` on each `workflow_node` row and aggregate total usage in `workflow_sessions.total_credits_consumed`.
 - **Idempotency keys**: Every credit-consuming operation must carry an idempotency key to prevent double-deductions on retries or network failures.
 
 ## 11. Minimal API Calls & Batch Processing
