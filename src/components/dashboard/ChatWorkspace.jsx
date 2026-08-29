@@ -1,15 +1,15 @@
 /**
  * ==============================================================================
- * Component: ChatWorkspace (Frontier Reference Design)
+ * Component: ChatWorkspace (Purpose-Driven Frontier Workspace)
  * ==============================================================================
  * Features:
  * - "Experience the frontier" elegant typography headline
- * - Clean, spacious input card with "Ask anything" prompt
- * - Bottom toolbar pills: "App files", "⚡ Olai M1", "..." and Send trigger
- * - 6 Quick-Start Template Cards Grid (Landing page, Dashboard, Game, Design to Code, etc.)
- * - Bottom-Right floating Community / Video preview callout card
- * - Dynamic model discovery from user API keys with Olai M1 credit model
- * - Interactive conversation stream with instant proxy dispatch
+ * - Pixel-perfect baseline & vertical alignment for Sparkles icon and animated placeholders
+ * - Auto-expanding prompt textarea with sleek custom scrollbar
+ * - Core Purpose-Driven Modes (Deep Research, Product Planning, Architecture Design, Task Execution)
+ * - Attached gradient Mode Bar on the chat composer with one-click dismiss (✕)
+ * - Dynamic mode-specific suggestions & rotating placeholders
+ * - Responsive model selection and instant proxy execution
  * ==============================================================================
  */
 
@@ -32,68 +32,106 @@ import {
   Loader2,
   X,
   FileText,
+  Search,
+  Compass,
+  Layers,
   Zap,
   MoreHorizontal,
-  Layers,
-  SendHorizontal,
-  Code2,
-  Lightbulb,
-  Database,
-  HelpCircle,
-  CheckSquare,
-  Link
+  SendHorizontal
 } from 'lucide-react';
 
-const ROTATING_PLACEHOLDERS = [
-  'Ask anything',
-  'Optimize this function to reduce time complexity...',
-  'Outline the logic for a custom authentication flow...',
-  'Generate a PostgreSQL schema for an orders system...',
+const WORKSPACE_MODES = [
+  {
+    id: 'research',
+    name: 'Deep Research',
+    badge: 'Research Mode',
+    gradient: 'from-blue-500/15 via-indigo-500/15 to-purple-500/15 border-indigo-500/30 text-indigo-700 dark:text-indigo-300',
+    icon: Search,
+    title: 'Deep Research & Analysis',
+    subtitle: 'Synthesize complex topics, verify sources & uncover technical insights',
+    placeholders: [
+      'What technical topic or market landscape would you like to research?',
+      'Compare modern state management approaches in React 19...',
+      'Analyze trade-offs between PostgreSQL vector indexing and Pinecone...',
+      'Synthesize the latest advancements in LLM reasoning engines...',
+    ],
+    suggestions: [
+      'Compare PostgreSQL vs DynamoDB for high-throughput SaaS',
+      'Analyze latest WebAssembly runtime performance benchmarks',
+      'Deep-dive into Supabase RLS security and indexing best practices',
+      'Synthesize state of generative AI coding assistants in 2026',
+    ],
+  },
+  {
+    id: 'product',
+    name: 'Product Planning',
+    badge: 'Product Planning Mode',
+    gradient: 'from-emerald-500/15 via-teal-500/15 to-cyan-500/15 border-teal-500/30 text-teal-700 dark:text-teal-300',
+    icon: Compass,
+    title: 'Product & Feature Planning',
+    subtitle: 'Draft PRDs, user flows, acceptance criteria & milestone roadmaps',
+    placeholders: [
+      'Describe the product idea or feature you want to plan...',
+      'Draft a comprehensive PRD with user stories and edge cases...',
+      'Define milestone timeline for our MVP release...',
+      'Map out complete user onboarding flow and conversion funnel...',
+    ],
+    suggestions: [
+      'Draft comprehensive PRD with acceptance criteria & edge cases',
+      'Create user onboarding journey & milestone timeline roadmap',
+      'Break down full MVP requirements into sprint-ready epics',
+      'Define KPI metrics & event analytics schema for user retention',
+    ],
+  },
+  {
+    id: 'architecture',
+    name: 'System Architecture',
+    badge: 'Architecture Design Mode',
+    gradient: 'from-purple-500/15 via-pink-500/15 to-rose-500/15 border-purple-500/30 text-purple-700 dark:text-purple-300',
+    icon: Layers,
+    title: 'System & Architecture Design',
+    subtitle: 'Architect full-stack database schemas, auth workflows & APIs',
+    placeholders: [
+      'What system or database structure are you designing?',
+      'Design a multi-tenant PostgreSQL schema with RLS...',
+      'Architect an event-driven background worker pipeline...',
+      'Model secure OAuth2 + session token auth flow...',
+    ],
+    suggestions: [
+      'Design multi-tenant PostgreSQL schema with RLS and foreign keys',
+      'Architect real-time WebSocket event dispatch pipeline',
+      'Model secure OAuth2 + session token auth flow with revocation',
+      'Design resilient distributed caching strategy with Redis',
+    ],
+  },
+  {
+    id: 'execution',
+    name: 'Task Execution',
+    badge: 'Complex Task Execution Mode',
+    gradient: 'from-amber-500/15 via-orange-500/15 to-red-500/15 border-amber-500/30 text-amber-700 dark:text-amber-300',
+    icon: Cpu,
+    title: 'Autonomous Task Execution',
+    subtitle: 'Break down complex multi-step coding tasks and implement end-to-end',
+    placeholders: [
+      'Describe the multi-step feature or implementation task...',
+      'Execute end-to-end refactor of auth and session management...',
+      'Generate end-to-end integration test suite with mocking...',
+      'Implement webhook ingestion with idempotent retry logic...',
+    ],
+    suggestions: [
+      'Plan and generate full-stack CRUD feature with validation',
+      'Step-by-step migration from REST endpoints to GraphQL schema',
+      'Implement robust rate-limiting and audit logging middleware',
+      'Create complete end-to-end automated testing workflow',
+    ],
+  },
 ];
 
-const TEMPLATE_CARDS = [
-  {
-    id: 'refactor-code',
-    title: 'Refactor Code',
-    subtitle: 'Optimize and clean up existing functions',
-    prompt: 'Refactor the following function to improve readability, performance, and handle edge cases gracefully:\n\n```js\n\n```',
-    icon: Code2,
-  },
-  {
-    id: 'brainstorm-logic',
-    title: 'Brainstorm Logic',
-    subtitle: 'Outline algorithms or system design',
-    prompt: 'Help me draft a clear, step-by-step algorithm and system architecture for implementing a real-time multiplayer notification system.',
-    icon: Lightbulb,
-  },
-  {
-    id: 'database-schema',
-    title: 'Database Schema',
-    subtitle: 'Design tables and define relationships',
-    prompt: 'Design a clean relational database schema for an e-commerce platform with users, orders, products, and checkout logs, including foreign key relationships and indexing suggestions.',
-    icon: Database,
-  },
-  {
-    id: 'explain-concepts',
-    title: 'Explain Concepts',
-    subtitle: 'Break down complex architectural designs',
-    prompt: 'Explain the difference between JWT sessions and Database sessions, outlining security, performance trade-offs, and scalability implications.',
-    icon: HelpCircle,
-  },
-  {
-    id: 'unit-tests',
-    title: 'Write Unit Tests',
-    subtitle: 'Generate comprehensive testing suites',
-    prompt: 'Generate robust unit tests covering success, validation failures, and edge cases for the following function:\n\n```js\n\n```',
-    icon: CheckSquare,
-  },
-  {
-    id: 'api-integration',
-    title: 'API Integration',
-    subtitle: 'Connect webhooks and standard protocols',
-    prompt: 'Show me an idiomatic integration pattern for handling Stripe webhooks securely in a Node.js endpoint, including signature verification and event handling.',
-    icon: Link,
-  },
+const DEFAULT_PLACEHOLDERS = [
+  'Ask Olai M1 anything or pick a mode below...',
+  'Research a breakthrough idea or technical concept...',
+  'Plan your next product architecture and database...',
+  'Break down a complex engineering task into stages...',
 ];
 
 export default function ChatWorkspace({ onCreditDeducted }) {
@@ -104,6 +142,9 @@ export default function ChatWorkspace({ onCreditDeducted }) {
   const [errorMessage, setErrorMessage] = useState('');
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [showCalloutCard, setShowCalloutCard] = useState(true);
+
+  // Active Mode State
+  const [activeMode, setActiveMode] = useState(null);
 
   // Rotating Placeholder State
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
@@ -119,9 +160,9 @@ export default function ChatWorkspace({ onCreditDeducted }) {
     id: 'olai-m1',
     name: 'Olai M1',
     provider: 'gemini',
-    rawModel: 'gemini-2.5-flash',
+    rawModel: 'gemini-2.0-flash',
     isPlatform: true,
-    creditCost: 'Default • High-speed',
+    creditCost: 'Default • High-speed platform intelligence',
   });
 
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
@@ -132,25 +173,33 @@ export default function ChatWorkspace({ onCreditDeducted }) {
       provider: 'gemini',
       rawModel: 'gemini-2.0-flash',
       isPlatform: true,
-      creditCost: 'Default • High-speed',
+      creditCost: 'Default • High-speed platform intelligence',
     },
   ]);
 
   const textareaRef = useRef(null);
   const messagesEndRef = useRef(null);
 
+  // Current active placeholder set
+  const currentPlaceholders = activeMode ? activeMode.placeholders : DEFAULT_PLACEHOLDERS;
+
   // Rotating placeholder interval
   useEffect(() => {
     const interval = setInterval(() => {
       setIsPlaceholderFading(true);
       setTimeout(() => {
-        setPlaceholderIndex((prev) => (prev + 1) % ROTATING_PLACEHOLDERS.length);
+        setPlaceholderIndex((prev) => (prev + 1) % currentPlaceholders.length);
         setIsPlaceholderFading(false);
       }, 300);
     }, 4000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [currentPlaceholders.length]);
+
+  // Reset placeholder index when active mode changes
+  useEffect(() => {
+    setPlaceholderIndex(0);
+  }, [activeMode]);
 
   // Click outside detection for model dropdown
   useEffect(() => {
@@ -171,6 +220,16 @@ export default function ChatWorkspace({ onCreditDeducted }) {
     }
   }, [messages, isSending]);
 
+  // Auto-grow textarea height dynamically based on value changes
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    textarea.style.height = 'auto';
+    const nextHeight = textarea.scrollHeight;
+    textarea.style.height = `${Math.min(nextHeight, 180)}px`;
+  }, [prompt]);
+
   // Load and verify all available models from user API keys
   useEffect(() => {
     if (!user?.id) return;
@@ -184,7 +243,7 @@ export default function ChatWorkspace({ onCreditDeducted }) {
           provider: 'gemini',
           rawModel: 'gemini-2.0-flash',
           isPlatform: true,
-          creditCost: 'Default • High-speed',
+          creditCost: 'Default • High-speed platform intelligence',
         },
       ];
 
@@ -202,7 +261,7 @@ export default function ChatWorkspace({ onCreditDeducted }) {
               provider: 'gemini',
               rawModel: modelName,
               isPlatform: false,
-              creditCost: 'Custom Key • Google AI',
+              creditCost: 'Custom Key • Google AI Ultra-low latency',
             });
           });
         }
@@ -252,18 +311,6 @@ export default function ChatWorkspace({ onCreditDeducted }) {
     };
   }, [user?.id]);
 
-  // Auto-grow textarea height dynamically based on value changes
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    // Reset height to calculate scrollHeight correctly
-    textarea.style.height = 'auto';
-    // Calculate new height, capping it at 180px with a sleek scrollbar
-    const nextHeight = textarea.scrollHeight;
-    textarea.style.height = `${Math.min(nextHeight, 180)}px`;
-  }, [prompt]);
-
   // Handle manual changes to prompt text
   const handlePromptChange = (e) => {
     setPrompt(e.target.value);
@@ -290,13 +337,21 @@ export default function ChatWorkspace({ onCreditDeducted }) {
 
   // Handle Send Message
   const handleSendMessage = async (textToSend = null) => {
-    const cleanPrompt = (textToSend || prompt).trim();
-    if (!cleanPrompt || isSending) return;
+    const rawText = (textToSend || prompt).trim();
+    if (!rawText || isSending) return;
 
     setErrorMessage('');
+    
+    // Prefix context if in a specialized mode
+    const finalContent = activeMode
+      ? `[Mode: ${activeMode.name}]\n${rawText}`
+      : rawText;
+
     const userMessage = {
       role: 'user',
-      content: cleanPrompt,
+      content: finalContent,
+      displayContent: rawText,
+      modeName: activeMode?.name,
       attachments: [...attachments],
       timestamp: new Date().toISOString(),
     };
@@ -358,7 +413,7 @@ export default function ChatWorkspace({ onCreditDeducted }) {
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-y-auto bg-[#FAFAFA] dark:bg-[#0E0F12] transition-colors">
-
+      
       {/* Hidden File Input */}
       <input
         type="file"
@@ -389,11 +444,13 @@ export default function ChatWorkspace({ onCreditDeducted }) {
 
                   <div className={`flex flex-col space-y-1.5 max-w-[85%] sm:max-w-[75%] ${isUser ? 'items-end' : 'items-start'}`}>
                     <div
-                      className={`rounded-2xl px-4 py-3 text-xs sm:text-[13px] leading-relaxed shadow-xs ${isUser
-                        ? 'bg-slate-900 dark:bg-zinc-100 text-white dark:text-slate-900'
-                        : 'bg-white dark:bg-[#121316] text-slate-900 dark:text-zinc-100 border border-slate-200/80 dark:border-zinc-800'
-                        }`}
+                      className={`rounded-2xl px-4 py-3 text-xs sm:text-[13px] leading-relaxed shadow-xs ${
+                        isUser
+                          ? 'bg-slate-900 dark:bg-zinc-100 text-white dark:text-slate-900'
+                          : 'bg-white dark:bg-[#121316] text-slate-900 dark:text-zinc-100 border border-slate-200/80 dark:border-zinc-800'
+                      }`}
                     >
+                      {/* Attached files preview */}
                       {msg.attachments && msg.attachments.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mb-2 pb-2 border-b border-white/20 dark:border-zinc-700">
                           {msg.attachments.map((att, attIdx) => (
@@ -407,7 +464,15 @@ export default function ChatWorkspace({ onCreditDeducted }) {
                           ))}
                         </div>
                       )}
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
+
+                      {/* Mode Badge Tag in Chat */}
+                      {msg.modeName && (
+                        <div className="inline-block rounded-md bg-slate-200/60 dark:bg-zinc-800 px-2 py-0.5 text-[10px] font-medium text-slate-700 dark:text-zinc-300 mb-1.5">
+                          Mode: {msg.modeName}
+                        </div>
+                      )}
+
+                      <p className="whitespace-pre-wrap">{msg.displayContent || msg.content}</p>
                     </div>
 
                     <div className="flex items-center gap-2 px-1 text-[10px] text-slate-400 dark:text-zinc-500">
@@ -469,12 +534,13 @@ export default function ChatWorkspace({ onCreditDeducted }) {
           CENTER HERO & PROMPT COMPOSER
           ========================================================================= */}
       <div
-        className={`relative z-20 flex w-full max-w-2xl flex-col mx-auto px-4 md:px-6 transition-all duration-300 ${isInitialEmptyState
-          ? 'flex-1 items-center justify-center my-auto py-8'
-          : 'shrink-0 pb-6'
-          }`}
+        className={`relative z-20 flex w-full max-w-2xl flex-col mx-auto px-4 md:px-6 transition-all duration-300 ${
+          isInitialEmptyState
+            ? 'flex-1 items-center justify-center my-auto py-8'
+            : 'shrink-0 pb-6'
+        }`}
       >
-
+        
         {/* Headline: "Experience the frontier" (Italics Serif) */}
         {isInitialEmptyState && (
           <div className="text-center mb-7 animate-in fade-in zoom-in-95 duration-300">
@@ -486,27 +552,46 @@ export default function ChatWorkspace({ onCreditDeducted }) {
 
         {/* Main Input Composer Card */}
         <div className="relative w-full rounded-2xl border border-slate-200/90 dark:border-zinc-800 bg-white dark:bg-[#121316] shadow-xs p-3 sm:p-3.5 transition-all">
+          
+          {/* Active Mode Bar Attached on Top */}
+          {activeMode && (
+            <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-zinc-800/80 animate-in slide-in-from-top-1 fade-in duration-200">
+              <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11.5px] font-medium bg-gradient-to-r ${activeMode.gradient} border shadow-2xs`}>
+                <activeMode.icon className="h-3.5 w-3.5" />
+                <span>{activeMode.badge}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveMode(null)}
+                className="flex h-5 w-5 items-center justify-center rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                title="Deselect mode"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
 
-          {/* Top Line: Pen/Sparkle + Textarea */}
+          {/* Top Line: Sparkles + Textarea + Aligned Placeholder */}
           <div className="flex items-start gap-2.5 pt-0.5">
-            <Sparkles className="h-4 w-4 text-slate-400 dark:text-zinc-500 mt-[3.5px] shrink-0 self-start" />
+            <Sparkles className="h-4 w-4 text-slate-400 dark:text-zinc-500 mt-[2px] shrink-0 self-start" />
             
-            <div className="relative flex-1 min-h-[42px]">
+            <div className="relative flex-1 min-h-[40px]">
               <textarea
                 ref={textareaRef}
                 rows={1}
                 value={prompt}
                 onChange={handlePromptChange}
                 onKeyDown={handleKeyDown}
-                className="w-full resize-none border-0 bg-transparent py-[1px] px-0 text-xs sm:text-[13.5px] text-slate-900 dark:text-zinc-100 focus:outline-none max-h-[180px] overflow-y-auto leading-relaxed z-10 relative custom-scrollbar"
+                className="w-full resize-none border-0 bg-transparent py-0 px-0 text-xs sm:text-[13.5px] leading-5 text-slate-900 dark:text-zinc-100 focus:outline-none max-h-[180px] overflow-y-auto z-10 relative custom-scrollbar"
               />
 
               {!prompt && (
                 <div
-                  className={`pointer-events-none absolute top-[3px] left-0 text-xs sm:text-[13.5px] text-slate-400 dark:text-zinc-500 transition-opacity duration-300 select-none ${isPlaceholderFading ? 'opacity-0' : 'opacity-100'
-                    }`}
+                  className={`pointer-events-none absolute top-0 left-0 text-xs sm:text-[13.5px] leading-5 text-slate-400 dark:text-zinc-500 transition-opacity duration-300 select-none truncate max-w-full ${
+                    isPlaceholderFading ? 'opacity-0' : 'opacity-100'
+                  }`}
                 >
-                  {ROTATING_PLACEHOLDERS[placeholderIndex]}
+                  {currentPlaceholders[placeholderIndex]}
                 </div>
               )}
             </div>
@@ -536,10 +621,10 @@ export default function ChatWorkspace({ onCreditDeducted }) {
 
           {/* Bottom Toolbar: Left Pills (App files, Olai M1, ...) and Right Buttons */}
           <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-slate-100 dark:border-zinc-800/70">
-
+            
             {/* Left Controls */}
             <div className="flex items-center gap-1.5">
-
+              
               {/* App files pill */}
               <button
                 type="button"
@@ -564,7 +649,7 @@ export default function ChatWorkspace({ onCreditDeducted }) {
 
                 {/* Dropdown Menu */}
                 {isModelDropdownOpen && (
-                  <div className="absolute bottom-full left-0 mb-2 z-50 w-68 max-h-72 overflow-y-auto rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#121316] p-1.5 shadow-xl animate-in zoom-in-95">
+                  <div className="absolute bottom-full left-0 mb-2 z-50 w-72 max-h-72 overflow-y-auto rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#121316] p-1.5 shadow-xl animate-in zoom-in-95">
                     <div className="px-2 py-1 text-[10.5px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
                       Select Model ({availableModels.length})
                     </div>
@@ -579,10 +664,11 @@ export default function ChatWorkspace({ onCreditDeducted }) {
                               setSelectedModel(m);
                               setIsModelDropdownOpen(false);
                             }}
-                            className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-medium transition-colors cursor-pointer ${isSelected
-                              ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-zinc-100'
-                              : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/60 hover:text-slate-900 dark:hover:text-zinc-200'
-                              }`}
+                            className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-medium transition-colors cursor-pointer ${
+                              isSelected
+                                ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-zinc-100'
+                                : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/60 hover:text-slate-900 dark:hover:text-zinc-200'
+                            }`}
                           >
                             <div className="flex flex-col text-left overflow-hidden">
                               <span className="truncate font-medium">{m.name}</span>
@@ -613,15 +699,6 @@ export default function ChatWorkspace({ onCreditDeducted }) {
 
             {/* Right Controls */}
             <div className="flex items-center gap-1.5">
-              {/* Layers Icon */}
-              <button
-                type="button"
-                className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
-                title="Canvas Layout"
-              >
-                <Layers className="h-4 w-4" />
-              </button>
-
               {/* Send Button */}
               <button
                 type="button"
@@ -641,36 +718,78 @@ export default function ChatWorkspace({ onCreditDeducted }) {
         </div>
 
         {/* =====================================================================
-            QUICK START TEMPLATE CARDS GRID (2 cols x 3 rows)
+            BELOW CARDS / MODE-SPECIFIC PROMPT SUGGESTIONS
             ===================================================================== */}
         {isInitialEmptyState && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full mt-4 animate-in fade-in duration-300">
-            {TEMPLATE_CARDS.map((card) => {
-              const Icon = card.icon;
-              return (
-                <button
-                  key={card.id}
-                  type="button"
-                  onClick={() => {
-                    setPrompt(card.prompt);
-                    textareaRef.current?.focus();
-                  }}
-                  className="flex items-start gap-3 rounded-xl border border-slate-200/80 dark:border-zinc-800/90 bg-white dark:bg-[#121316] p-3 text-left transition-all hover:border-slate-300 dark:hover:border-zinc-700 hover:shadow-2xs active:scale-[0.99] cursor-pointer group"
-                >
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-200/70 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 group-hover:text-slate-900 dark:group-hover:text-zinc-100 transition-colors mt-0.5">
-                    <Icon className="h-3.5 w-3.5" />
-                  </div>
-                  <div className="flex flex-col overflow-hidden">
-                    <span className="text-xs font-semibold text-slate-800 dark:text-zinc-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors truncate">
-                      {card.title}
-                    </span>
-                    <span className="text-[11px] text-slate-400 dark:text-zinc-500 truncate mt-0.5">
-                      {card.subtitle}
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
+          <div className="w-full mt-4">
+            {activeMode ? (
+              /* Mode Specific Subtitle Task Suggestions */
+              <div className="animate-in fade-in slide-in-from-bottom-2 duration-200 space-y-2">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[11px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+                    {activeMode.name} Suggestions
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveMode(null)}
+                    className="text-[11px] text-slate-500 hover:text-slate-800 dark:hover:text-zinc-200 cursor-pointer"
+                  >
+                    View all modes
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {activeMode.suggestions.map((suggestion, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setPrompt(suggestion);
+                        textareaRef.current?.focus();
+                      }}
+                      className="flex items-start gap-2.5 rounded-xl border border-slate-200/90 dark:border-zinc-800 bg-white/90 dark:bg-[#121316]/90 p-2.5 text-left transition-all hover:border-slate-300 dark:hover:border-zinc-700 hover:shadow-2xs active:scale-[0.99] cursor-pointer group"
+                    >
+                      <span className="text-slate-400 dark:text-zinc-500 text-xs mt-0.5 group-hover:text-slate-800 dark:group-hover:text-zinc-200 transition-colors">
+                        ✦
+                      </span>
+                      <span className="text-xs text-slate-700 dark:text-zinc-300 leading-snug group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
+                        {suggestion}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              /* 4 Core Purpose-Driven Mode Cards */
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full animate-in fade-in duration-300">
+                {WORKSPACE_MODES.map((mode) => {
+                  const Icon = mode.icon;
+                  return (
+                    <button
+                      key={mode.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveMode(mode);
+                        textareaRef.current?.focus();
+                      }}
+                      className="flex items-start gap-3 rounded-xl border border-slate-200/80 dark:border-zinc-800/90 bg-white dark:bg-[#121316] p-3 text-left transition-all hover:border-slate-300 dark:hover:border-zinc-700 hover:shadow-2xs active:scale-[0.99] cursor-pointer group"
+                    >
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-200/70 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 group-hover:text-slate-900 dark:group-hover:text-zinc-100 transition-colors mt-0.5">
+                        <Icon className="h-3.5 w-3.5" />
+                      </div>
+                      <div className="flex flex-col overflow-hidden">
+                        <span className="text-xs font-semibold text-slate-800 dark:text-zinc-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors truncate">
+                          {mode.title}
+                        </span>
+                        <span className="text-[11px] text-slate-400 dark:text-zinc-500 truncate mt-0.5">
+                          {mode.subtitle}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
