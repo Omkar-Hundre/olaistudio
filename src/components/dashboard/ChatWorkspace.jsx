@@ -700,52 +700,14 @@ export default function ChatWorkspace({
               </div>
             )}
 
-            {/* INLINE ALIGNMENT PROGRESS BAR (Shown only if no questions card or vision card is active) */}
-            {alignmentScore !== null && activeQuestions.length === 0 && !visionContent && (
-              <div className="w-full rounded-2xl border border-slate-200/80 dark:border-zinc-800/80 bg-white/70 dark:bg-[#1A1D24]/70 backdrop-blur-xs px-5 py-3 shadow-2xs transition-all animate-in fade-in">
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 w-full sm:w-auto min-w-[200px]">
-                    <span className="text-xs font-medium text-slate-700 dark:text-zinc-300 whitespace-nowrap">
-                      Alignment {alignmentScore}%
-                    </span>
-                    <div className="h-1.5 flex-1 max-w-[140px] rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-slate-700 to-slate-900 dark:from-zinc-300 dark:to-white transition-all duration-700 ease-out rounded-full"
-                        style={{ width: `${Math.min(100, Math.max(0, alignmentScore))}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  {currentBranch && (
-                    <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-zinc-400 truncate">
-                      <span className="text-slate-400 dark:text-zinc-500">Focus:</span>
-                      <span className="font-medium text-slate-700 dark:text-zinc-300 truncate">{currentBranch}</span>
-                    </div>
-                  )}
-
-                  {alignmentScore < 85 && (
-                    <button
-                      type="button"
-                      onClick={() => handleSendMessage('Proceed immediately: synthesize and finalize the complete Vision and Plan with all available context.')}
-                      disabled={isSending}
-                      className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-zinc-400 hover:text-slate-950 dark:hover:text-white transition-colors cursor-pointer disabled:opacity-50 ml-auto sm:ml-0"
-                      title="Bypass remaining questions and generate Vision immediately"
-                    >
-                      <Zap className="h-3.5 w-3.5 text-amber-500 fill-amber-500/20" />
-                      <span>Skip & Build</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Active Questionnaire Card with Integrated Alignment Meter & Skip Button */}
+            {/* Active Questionnaire Card with Integrated Alignment Meter, Skip Button & Simplify Action */}
             {activeQuestions && activeQuestions.length > 0 && !isSending && (
               <QuestionnaireCard
                 questions={activeQuestions}
                 alignmentScore={alignmentScore ?? 35}
                 currentBranch={currentBranch}
                 onSkip={() => handleSendMessage('Proceed immediately: finalize and generate the complete plan with all current context.')}
+                onSimplify={() => handleSendMessage("I did not understand those options. Please explain the choices in simpler, plain English and provide simpler beginner-friendly options.")}
                 onSubmit={(clarificationsPayload) => {
                   setActiveQuestions([]);
                   handleSendMessage(clarificationsPayload);

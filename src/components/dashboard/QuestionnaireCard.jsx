@@ -3,15 +3,16 @@
  * Component: QuestionnaireCard
  * ==============================================================================
  * Interactive Tile-View Questionnaire & Alignment Card:
- * - Appears right below the response turn
+ * - Appears right below the response turn once generation completes
  * - Integrates real-time alignment meter (35% -> 85%+) & "Skip & Build" button
  * - Tile-based selectable options (3 tailored choices + 1 custom input)
+ * - Includes "Didn't understand? Simplify" button for re-asking in simpler terms
  * - 100% responsive, sleek dark obsidian / light slate SaaS design
  * ==============================================================================
  */
 
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, SendHorizontal, Check, Edit3, Zap } from 'lucide-react';
+import { ChevronLeft, ChevronRight, SendHorizontal, Check, Edit3, Zap, HelpCircle } from 'lucide-react';
 
 export default function QuestionnaireCard({
   questions = [],
@@ -19,6 +20,7 @@ export default function QuestionnaireCard({
   currentBranch = '',
   onSubmit,
   onSkip,
+  onSimplify,
   isSending = false,
 }) {
   if (!questions || questions.length === 0) return null;
@@ -204,19 +206,34 @@ export default function QuestionnaireCard({
           </div>
         </div>
 
-        {/* Footer Navigation */}
-        <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-zinc-800/70">
-          <button
-            type="button"
-            onClick={handleBack}
-            disabled={currentIndex === 0 || isSending}
-            className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-xl text-xs font-medium text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
-          >
-            <ChevronLeft className="h-3.5 w-3.5" />
-            <span>Back</span>
-          </button>
+        {/* Footer Navigation & Simplify Action */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-zinc-800/70">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={handleBack}
+              disabled={currentIndex === 0 || isSending}
+              className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-xl text-xs font-medium text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+              <span>Back</span>
+            </button>
 
-          <div className="flex items-center gap-2">
+            {onSimplify && (
+              <button
+                type="button"
+                onClick={onSimplify}
+                disabled={isSending}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-40 cursor-pointer"
+                title="Rephrase questions in simpler, plain terms"
+              >
+                <HelpCircle className="h-3.5 w-3.5 text-slate-400 dark:text-zinc-500" />
+                <span>Didn't understand? Simplify</span>
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
             {!isLastQuestion ? (
               <button
                 type="button"

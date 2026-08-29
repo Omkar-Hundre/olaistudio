@@ -3,10 +3,10 @@
  * System Command & Structured Questionnaire Parser
  * ==============================================================================
  * Industrial-grade parser that:
- * 1. Safely strips %%%SYSTEM_CMD%%% blocks so user never sees raw JSON or metadata (Rule 14 & 16)
- * 2. Parses structured questions, alignment confidence, suggested title, and action buttons
- * 3. Handles unescaped characters, markdown fences (```json ... ```), trailing commas, and formatting errors
- * 4. Extracts structured fallback questions from plain text if model omits JSON block
+ * 1. Safely strips %%%SYSTEM_CMD%%% blocks and questions from chat bubble text
+ * 2. Parses structured questions and options from both %%%SYSTEM_CMD%%% JSON and inline Markdown text
+ * 3. Handles unescaped characters, markdown fences, and bullet formatting (* **A:** ...)
+ * 4. Ensures clean separation between conversational greeting and the interactive modal
  * ==============================================================================
  */
 
@@ -62,7 +62,6 @@ function safeJsonParse(raw) {
       try {
         extracted.questions = JSON.parse(questionsBlockMatch[1]);
       } catch {
-        // Individual question item regex extraction
         const qMatches = [...questionsBlockMatch[1].matchAll(/{\s*"id"\s*:\s*"([^"]+)"[\s\S]*?"question"\s*:\s*"([^"]+)"[\s\S]*?"options"\s*:\s*\[([\s\S]*?)\]\s*}/g)];
         if (qMatches.length > 0) {
           extracted.questions = qMatches.map((m, idx) => {
@@ -86,41 +85,84 @@ function safeJsonParse(raw) {
 }
 
 /**
- * Extracts fallback questions from plain text questionnaire if model outputs text questions
+ * Extracts structured questions and options from plain markdown text
  * @param {string} text 
- * @returns {Array<{ id: string, question: string, options: string[] }>}
+ * @returns {{ questions: Array<{ id: string, question: string, options: string[] }>, strippedText: string }}
  */
-function extractFallbackQuestionsFromText(text) {
-  if (!text || typeof text !== 'string') return [];
+export function extractStructuredQuestionsFromText(text) {
+  if (!text || typeof text !== 'string') return { questions: [], strippedText: text || '' };
 
-  const questions = [];
-  // Look for patterns like "1. What is..." or "Question 1: ..."
   const lines = text.split('\n');
+  const questions = [];
   let currentQ = null;
+  const nonQuestionLines = [];
+  let isInQuestionsBlock = false;
 
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     const trimmed = line.trim();
-    const qMatch = trimmed.match(/^(?:(?:\d+\.|\?|Q\d+:?)\s+)(.+)/i);
-    if (qMatch && trimmed.includes('?')) {
-      if (currentQ) questions.push(currentQ);
+
+    // Check for question header (e.g., "1. To begin...", "### 1. ...", "Question 1: ...")
+    const questionMatch = trimmed.match(/^(?:(?:\d+\.|\?|Q\d+:?|###\s+\d+\.)\s+)(.+)/i);
+
+    if (questionMatch && (trimmed.includes('?') || trimmed.includes(':'))) {
+      isInQuestionsBlock = true;
+      if (currentQ) {
+        questions.push(currentQ);
+      }
       currentQ = {
         id: `q${questions.length + 1}`,
-        question: qMatch[1].replace(/\*\*/g, '').trim(),
-        options: [
-          'Recommended Standard Approach',
-          'High-Performance / Scalable Setup',
-          'Minimal / Quick Delivery Setup',
-        ],
+        question: questionMatch[1].replace(/^\*+|\*+$/g, '').trim(),
+        options: [],
       };
+      continue;
+    }
+
+    // Check for options: "* **A:** ...", "- A) ...", "A. ...", "* Option ..."
+    const optionMatch = trimmed.match(/^(?:[-*•]\s+)?(?:\*\*)?(?:[A-DА-Я0-9][.):]|\([A-D0-9]\))\s*(?:\*\*)?\s*(.+)/i);
+
+    if (currentQ && optionMatch) {
+      const cleanOption = optionMatch[1].replace(/^\*+|\*+$/g, '').trim();
+      if (cleanOption) {
+        currentQ.options.push(cleanOption);
+      }
+      continue;
+    }
+
+    // Trailing instructions like "Please select the options..."
+    if (isInQuestionsBlock && trimmed.toLowerCase().includes('select the options')) {
+      continue;
+    }
+
+    if (!isInQuestionsBlock) {
+      nonQuestionLines.push(line);
     }
   }
 
-  if (currentQ) questions.push(currentQ);
-  return questions.slice(0, 3); // Max 3 focused questions
+  if (currentQ) {
+    questions.push(currentQ);
+  }
+
+  // Ensure every question has 3 fallback options if none were parsed
+  const validQuestions = questions.map((q, idx) => ({
+    id: q.id || `q${idx + 1}`,
+    question: q.question,
+    options: q.options.length >= 2 ? q.options.slice(0, 3) : [
+      'Recommended Standard Approach',
+      'High-Performance / Scalable Setup',
+      'Minimal / Quick Delivery Setup',
+    ],
+  }));
+
+  const strippedText = validQuestions.length > 0
+    ? nonQuestionLines.join('\n').trim()
+    : text.trim();
+
+  return { questions: validQuestions, strippedText };
 }
 
 /**
- * Parses hidden system command block from AI output text
+ * Parses hidden system command block and markdown text from AI output
  * @param {string} text 
  * @returns {{ cleanText: string, commands: Object | null }}
  */
@@ -129,29 +171,28 @@ export function parseSystemCommands(text) {
     return { cleanText: text || '', commands: null };
   }
 
-  // 1. Check for %%%SYSTEM_CMD%%% tag
+  // 1. Strip trailing %%%SYSTEM_CMD%%% tag if present
+  let cleanText = text.replace(/%%%SYSTEM_CMD%%%[\s\S]*$/, '').trim();
   const match = text.match(/%%%SYSTEM_CMD%%%([\s\S]*?)(?:%%%SYSTEM_CMD%%%|$)/);
-  if (!match) {
-    // If no hidden command block exists, check if text has questions
-    const fallbackQuestions = extractFallbackQuestionsFromText(text);
-    return {
-      cleanText: text.trim(),
-      commands: fallbackQuestions.length > 0 ? { questions: fallbackQuestions, confidence_score: 35 } : null,
-    };
+
+  let commands = null;
+  if (match) {
+    commands = safeJsonParse(match[1].trim());
   }
 
-  // 2. Strip all %%%SYSTEM_CMD%%% blocks from rendered text
-  const cleanText = text.replace(/%%%SYSTEM_CMD%%%[\s\S]*$/, '').trim();
-  const rawCommandContent = match[1].trim();
+  // 2. If questions were not provided via JSON or if text contains inline questions:
+  const { questions: textQuestions, strippedText } = extractStructuredQuestionsFromText(cleanText);
 
-  // 3. Parse commands payload
-  const commands = safeJsonParse(rawCommandContent);
-
-  // If questions were not found in JSON but exist in text, fallback gracefully
-  if (commands && (!commands.questions || commands.questions.length === 0) && !commands.ready_for_vision && (commands.confidence_score === undefined || commands.confidence_score < 85)) {
-    const fallbackQuestions = extractFallbackQuestionsFromText(cleanText);
-    if (fallbackQuestions.length > 0) {
-      commands.questions = fallbackQuestions;
+  if (textQuestions.length > 0) {
+    cleanText = strippedText;
+    if (!commands) {
+      commands = {
+        confidence_score: 35,
+        current_branch: 'Project Architecture & Scope',
+        questions: textQuestions,
+      };
+    } else if (!commands.questions || commands.questions.length === 0) {
+      commands.questions = textQuestions;
     }
   }
 

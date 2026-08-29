@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.9.0] - 2026-08-29
 
 ### Added
+- **Questionnaire Modal Separation & "Simplify Questions" Action (`QuestionnaireCard.jsx`, `ChatWorkspace.jsx`)**:
+  - Automatically stripped inline questionnaire text lists from message bubbles so questions only render inside the interactive modal.
+  - Added "Didn't understand? Simplify 💡" button allowing users to request simpler, plain English explanations with 1 click.
+  - Removed all standalone progress indicators while streaming so alignment meter and skip actions only appear inside the questionnaire modal once generation is complete.
 - **Industrial-Grade JSON & Questionnaire Parser (`systemCommandParser.js`)**:
   - Engineered resilient multi-pass JSON cleanser that handles markdown code fences, unescaped characters, trailing commas, and formatting errors.
   - Implemented automatic question structure recovery with text extraction fallback so questionnaire tiles are guaranteed to render cleanly.
