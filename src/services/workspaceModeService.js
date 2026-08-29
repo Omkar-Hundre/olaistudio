@@ -9,7 +9,7 @@
  * ==============================================================================
  */
 
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase.js';
 
 // Embedded default fallback modes (Mother Agent Pure JSON Strategy)
 const BASE_JSON_SYSTEM_PROMPT = (roleTitle, domainSpecifics) => `You are the Lead Technical Architect for OLAI — an expert product strategist with deep domain knowledge in ${domainSpecifics}.

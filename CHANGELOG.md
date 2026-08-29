@@ -13,9 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Sub-Second Latency Optimization & Deployed AI Proxy v11 (`ai-proxy/index.ts`, `platform_models`)**:
   - Identified and resolved 150-second latency bottleneck by migrating default `Olai M1` model in `public.platform_models` to `gemini-2.0-flash` (TTFT < 800ms).
   - Deployed `ai-proxy` v11 with explicit `isPlatform` model routing, ensuring system model `Olai M1` consistently uses platform credits even when custom keys are stored in Settings.
-- **Zero-Credit Automated Pipeline Test Suite (`scripts/test-pipeline.js`)**:
-  - Implemented 5 automated test suites covering payload sanitization, Rule 9 token budgeting & compression, parser edge-case resilience, the 2-step protocol state machine, and an offline request tracker.
-  - Registered `npm run test:pipeline` running 32 unit and state-transition tests with 100% pass rate and zero external API credit cost.
+- **Verbatim Prompt, Memory & Payload Inspection CLI (`scripts/inspect-payloads.js`)**:
+  - Implemented `npm run inspect:payloads` providing 100% transparent terminal visibility into verbatim prompts, exact character counts, token estimates, 3-level memory diffs, and parser extraction mapping with zero API cost.
+- **In-App Real-Time Dev Payload Inspector Drawer (`DevPayloadInspector.jsx`, `ChatWorkspace.jsx`)**:
+  - Built a floating slide-over developer inspector available during local development (`npm run dev`) that displays live wire payload turns, active system instructions, and L1/L2/L3 memory state in real-time.
 - **Three-Level Memory Architecture & Dynamic Context Delivery (`ChatWorkspace.jsx`, `aiProxyService.js`)**:
   - Wired Level 1 (live message turns), Level 2 (root node conversation history & hidden commands), and Level 3 (project vision, branch focus, and confidence scores).
   - Provided `globalContext` and `parentContext` dynamically to the AI proxy on all turns.

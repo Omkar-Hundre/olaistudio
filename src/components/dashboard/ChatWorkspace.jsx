@@ -27,6 +27,7 @@ import { createWorkflowSession, updateWorkflowSession, getWorkflowSession, saveR
 import { supabase } from '../../lib/supabase';
 import QuestionnaireCard from './QuestionnaireCard';
 import VisionCard from './VisionCard';
+import DevPayloadInspector from './DevPayloadInspector';
 import {
   Paperclip,
   ArrowUp,
@@ -1236,6 +1237,18 @@ export default function ChatWorkspace({
           </div>
         </div>
       )}
+
+      {/* Developer In-App Live Payload & Memory Inspector (Dev Only) */}
+      <DevPayloadInspector
+        activeMode={activeMode}
+        messages={messages}
+        alignmentScore={alignmentScore}
+        currentBranch={currentBranch}
+        visionContent={visionContent}
+        activeQuestions={activeQuestions}
+        selectedModel={selectedModel}
+        sessionId={sessionId}
+      />
 
     </div>
   );
