@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.9.0] - 2026-08-29
 
 ### Added
+- **Industrial-Grade JSON & Questionnaire Parser (`systemCommandParser.js`)**:
+  - Engineered resilient multi-pass JSON cleanser that handles markdown code fences, unescaped characters, trailing commas, and formatting errors.
+  - Implemented automatic question structure recovery with text extraction fallback so questionnaire tiles are guaranteed to render cleanly.
+  - Guaranteed zero credit wastage with instant database persistence for all prompt and response turns.
 - **Resilient Chat Switching & Automatic Titling (`ChatWorkspace.jsx`, `systemCommandParser.js`)**:
   - Fixed chat switching from sidebar by querying root node turns ordered by depth from `workflow_nodes`.
   - Implemented automatic fallback titling so conversations are always named from the first turn even if LLM JSON is wrapped in code fences.
