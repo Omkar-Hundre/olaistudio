@@ -146,11 +146,48 @@ Deno.serve(async (req) => {
           });
         }
 
+        const generationConfig: any = {
+          response_mime_type: "application/json",
+          response_schema: {
+            type: "OBJECT",
+            properties: {
+              greeting: { type: "STRING" },
+              suggested_title: { type: "STRING" },
+              confidence_score: { type: "INTEGER" },
+              current_branch: { type: "STRING" },
+              ready_for_vision: { type: "BOOLEAN" },
+              cta_label: { type: "STRING" },
+              questions: {
+                type: "ARRAY",
+                items: {
+                  type: "OBJECT",
+                  properties: {
+                    id: { type: "STRING" },
+                    question: { type: "STRING" },
+                    options: {
+                      type: "ARRAY",
+                      items: { type: "STRING" }
+                    }
+                  },
+                  required: ["id", "question", "options"]
+                }
+              },
+              plan_markdown: { type: "STRING" }
+            },
+            required: ["greeting", "confidence_score", "ready_for_vision", "plan_markdown"]
+          },
+          temperature: 0.7,
+        };
+
+        if (model.includes("2.5") || model.includes("flash")) {
+          generationConfig.thinking_config = {
+            thinking_budget: 0,
+          };
+        }
+
         const requestBody: any = {
           contents: geminiContents,
-          generationConfig: {
-            response_mime_type: "application/json",
-          },
+          generationConfig,
         };
 
         if (combinedSystemInstruction && combinedSystemInstruction.trim()) {
@@ -345,11 +382,48 @@ Deno.serve(async (req) => {
         });
       });
 
+      const syncGenerationConfig: any = {
+        response_mime_type: "application/json",
+        response_schema: {
+          type: "OBJECT",
+          properties: {
+            greeting: { type: "STRING" },
+            suggested_title: { type: "STRING" },
+            confidence_score: { type: "INTEGER" },
+            current_branch: { type: "STRING" },
+            ready_for_vision: { type: "BOOLEAN" },
+            cta_label: { type: "STRING" },
+            questions: {
+              type: "ARRAY",
+              items: {
+                type: "OBJECT",
+                properties: {
+                  id: { type: "STRING" },
+                  question: { type: "STRING" },
+                  options: {
+                    type: "ARRAY",
+                    items: { type: "STRING" }
+                  }
+                },
+                required: ["id", "question", "options"]
+              }
+            },
+            plan_markdown: { type: "STRING" }
+          },
+          required: ["greeting", "confidence_score", "ready_for_vision", "plan_markdown"]
+        },
+        temperature: 0.7,
+      };
+
+      if (model.includes("2.5") || model.includes("flash")) {
+        syncGenerationConfig.thinking_config = {
+          thinking_budget: 0,
+        };
+      }
+
       const requestBody: any = {
         contents: geminiContents,
-        generationConfig: {
-          response_mime_type: "application/json",
-        },
+        generationConfig: syncGenerationConfig,
       };
 
       if (combinedSystemInstruction && combinedSystemInstruction.trim()) {

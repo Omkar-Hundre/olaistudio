@@ -246,8 +246,8 @@ function humanizeKey(key) {
 
 /**
  * Universal JSON to Markdown Converter:
- * Recursively and generically converts ANY arbitrary JSON structure (regardless of domain, 
- * problem type, industry, or format) into a beautifully formatted, hierarchical Markdown document.
+ * Formats any arbitrary JSON data into rich, professional engineering documentation
+ * with clean Markdown tables, bold technical callouts, and structured sections.
  * @param {Object | Array} data
  * @param {number} [depth=1]
  * @returns {string}
@@ -256,29 +256,82 @@ export function convertArbitraryJsonToMarkdown(data, depth = 1) {
   if (data === null || data === undefined) return '';
   if (typeof data !== 'object') return String(data);
 
+  // Array Handling
   if (Array.isArray(data)) {
     return data
       .map((item, idx) => {
         if (typeof item !== 'object' || item === null) {
           return `- ${item}`;
         }
-        const itemTitle = item.title || item.name || item.type || item.heading || item.label || `Item ${idx + 1}`;
-        const remainingProps = Object.entries(item).filter(([k]) => !['title', 'name', 'type', 'heading', 'label'].includes(k));
-        
-        let out = `### ${itemTitle}\n`;
-        for (const [k, v] of remainingProps) {
+
+        const sectionName = item.type || item.title || item.name || item.heading || item.label || `Section ${idx + 1}`;
+        let block = `\n### ${sectionName}\n`;
+
+        if (item.headline) block += `**Headline:** ${item.headline}\n\n`;
+        if (item.subHeadline || item.description) block += `**Description / Copy:** ${item.subHeadline || item.description}\n\n`;
+        if (item.visualDescription || item.visual) block += `**Visual & UX Direction:** ${item.visualDescription || item.visual}\n\n`;
+
+        // Render features array if present
+        if (Array.isArray(item.features)) {
+          block += `**Key Features & Deliverables:**\n`;
+          item.features.forEach(f => {
+            if (typeof f === 'object' && f !== null) {
+              block += `- **${f.title || f.name || 'Feature'}:** ${f.description || f.value || ''}\n`;
+            } else {
+              block += `- ${f}\n`;
+            }
+          });
+          block += '\n';
+        }
+
+        // Render nav links or buttons if present
+        if (Array.isArray(item.navLinks)) {
+          block += `**Navigation Items:**\n`;
+          item.navLinks.forEach(l => {
+            block += `- ${l.text || l.label || 'Link'} (${l.url || l.href || '#'})\n`;
+          });
+          block += '\n';
+        }
+
+        if (item.primaryButton) {
+          block += `**Primary Action Button:** "${item.primaryButton.text || 'Submit'}" (${item.primaryButton.url || item.primaryButton.action || '#'})\n\n`;
+        }
+
+        // Render comparison table if present
+        if (item.comparisonTable && typeof item.comparisonTable === 'object') {
+          const ct = item.comparisonTable;
+          const headers = Array.isArray(ct.headers) ? ct.headers : ['Feature', 'Specification', 'Standard'];
+          block += `\n| ${headers.join(' | ')} |\n`;
+          block += `| ${headers.map(() => '---').join(' | ')} |\n`;
+
+          if (Array.isArray(ct.rows)) {
+            ct.rows.forEach(r => {
+              if (typeof r === 'object' && r !== null) {
+                const values = Object.values(r);
+                block += `| ${values.join(' | ')} |\n`;
+              }
+            });
+          }
+          block += '\n';
+        }
+
+        // Process any remaining custom fields
+        const processedKeys = new Set(['type', 'title', 'name', 'heading', 'label', 'headline', 'subHeadline', 'description', 'visualDescription', 'visual', 'features', 'navLinks', 'primaryButton', 'comparisonTable']);
+        const remaining = Object.entries(item).filter(([k]) => !processedKeys.has(k));
+        for (const [k, v] of remaining) {
           if (typeof v === 'object' && v !== null) {
-            out += `**${humanizeKey(k)}:**\n${convertArbitraryJsonToMarkdown(v, depth + 1)}\n`;
+            block += `**${humanizeKey(k)}:**\n${convertArbitraryJsonToMarkdown(v, depth + 1)}\n\n`;
           } else {
-            out += `- **${humanizeKey(k)}:** ${v}\n`;
+            block += `- **${humanizeKey(k)}:** ${v}\n`;
           }
         }
-        return out;
+
+        return block.trim();
       })
-      .join('\n');
+      .join('\n\n');
   }
 
-  // Object handling
+  // Object Handling
   let markdown = '';
   const entries = Object.entries(data);
 

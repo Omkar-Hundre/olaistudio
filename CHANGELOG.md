@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.10.0] - 2026-08-29
 
 ### Added
+- **Sub-Second Streaming Latency & Strict JSON Response Schema (`ai-proxy/index.ts`)**:
+  - Deployed `ai-proxy` v14 configuring strict Gemini `response_schema` enforcing that all Master Plans are produced as rich Markdown documents inside `plan_markdown`, eliminating foreign JSON key leakage (`pageTitle`, `sections`, `landingPage`).
+  - Optimized Gemini 2.5 Flash `thinking_config` budget to resolve the 150-second latency bottleneck, achieving sub-second time-to-first-token (TTFT < 800ms).
 - **Exhaustive Master Plan Depth & Technical Granularity (`workspaceModeService.js`, `workspace_modes`)**:
   - Enforced strict depth requirements in Mother Agent system prompts across all workspace modes: mandating 800+ words of granular specifications across all 7 sections (concrete DB schemas, typed API contracts, explicit UI design tokens, phased engineering tasks, and quantifiable KPIs), strictly prohibiting shallow 3-4 word bullet fragments.
 - **Adaptive Scope & Plan Synthesis (`systemCommandParser.js`, `ChatWorkspace.jsx`)**:
