@@ -216,7 +216,7 @@ const foreignLandingPageJson = JSON.stringify({
 });
 const parsedF = parseSystemCommands(foreignLandingPageJson);
 assert(parsedF.commands !== null, 'Normalizes foreign landing page JSON schema');
-assert(parsedF.commands.ready_for_vision === true, 'Sets ready_for_vision for full page schema');
+assert(parsedF.commands.questions.length >= 2, 'Automatically generates Step 1 questionnaire first');
 assert(parsedF.commands.plan_markdown.includes('Zelos Aura X1'), 'Converts foreign sections to structured plan markdown');
 assert(!parsedF.cleanText.includes('{') && !parsedF.cleanText.includes('pageTitle'), 'Generates clean human greeting without raw JSON dump');
 

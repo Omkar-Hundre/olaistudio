@@ -699,6 +699,23 @@ export default function ChatWorkspace({
     );
   };
 
+  const handleUpdatePlan = async (newPlanContent) => {
+    setVisionContent(newPlanContent);
+    const activeSessionId = sessionIdRef.current;
+    if (activeSessionId) {
+      updateWorkflowSession(activeSessionId, { vision_content: newPlanContent });
+      saveRootSessionState({
+        sessionId: activeSessionId,
+        messages,
+        confidenceScore: alignmentScore || 85,
+        currentBranch,
+        visionContent: newPlanContent,
+        questions: activeQuestions,
+        ctaLabel,
+      });
+    }
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -914,6 +931,7 @@ export default function ChatWorkspace({
                 visionContent={visionContent}
                 ctaLabel={ctaLabel}
                 onProceed={handleProceedExecution}
+                onUpdatePlan={handleUpdatePlan}
                 isExecuting={isExecuting}
               />
             )}

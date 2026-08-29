@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.10.0] - 2026-08-29
 
 ### Added
+- **Interactive In-Place Plan Editor (`VisionCard.jsx`, `ChatWorkspace.jsx`)**:
+  - Added an **"Edit Plan"** button and inline Markdown editor in `VisionCard` allowing users to tweak, rewrite, add, or remove any section of the generated plan with instant Save/Cancel actions and automatic Supabase database synchronization before proceeding with **"Cook"**.
+- **Guaranteed Step 1 Questionnaire Generation on Initial Turn (`systemCommandParser.js`)**:
+  - Configured initial arbitrary JSON and complex prompt handling to always present an interactive 2-3 question questionnaire with 3 selectable options each on Turn 1 so users can confirm their preferred architectural trade-offs, with immediate **"Skip & Build"** option to jump straight to the plan.
 - **Domain-Agnostic Universal JSON Architecture Normalizer (`systemCommandParser.js`)**:
   - Implemented `convertArbitraryJsonToMarkdown()` to recursively and generically convert any arbitrary JSON structure (regardless of domain, format, or industry — mobile, backend microservices, ML pipelines, web apps, cloud infra) into a clean, hierarchical Markdown document rendered in `VisionCard`, eliminating hardcoded domain rules.
 - **Fixed First-Prompt Output Disappearance Race Condition (`ChatWorkspace.jsx`)**:

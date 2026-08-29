@@ -332,14 +332,35 @@ export function parseSystemCommands(text) {
       const cleanTitle = typeof candidateTitle === 'string' ? candidateTitle.slice(0, 48) : 'Project Architecture';
       const universalPlan = convertArbitraryJsonToMarkdown(parsedJson);
 
+      const defaultQuestions = [
+        {
+          id: 'q1',
+          question: `Which core framework & styling setup should we use for ${cleanTitle}?`,
+          options: [
+            'Next.js 15 (App Router) + Tailwind CSS + Lucide Icons (Production Standard)',
+            'Vite + React 19 + Vanilla CSS (Ultra Lightweight & Fast)',
+            'Astro / Svelte for maximum SEO & static performance',
+          ],
+        },
+        {
+          id: 'q2',
+          question: `What backend data & conversion workflow should be integrated?`,
+          options: [
+            'Supabase Database & Edge Functions (Realtime)',
+            'Stripe Checkout & Email Capture Webhooks for instant conversion',
+            'Lightweight Headless API / REST endpoints',
+          ],
+        },
+      ];
+
       const normalizedCommand = {
-        greeting: `I've analyzed your requirements and generated the complete project architecture for "${cleanTitle}".`,
+        greeting: `I've structured the preliminary architecture for "${cleanTitle}". Please confirm these key technical choices to finalize the plan:`,
         suggested_title: cleanTitle,
-        confidence_score: 85,
-        current_branch: 'Master Architecture & Scope',
-        ready_for_vision: true,
+        confidence_score: 50,
+        current_branch: 'Architecture & Technical Stack',
+        ready_for_vision: false,
         cta_label: 'Cook',
-        questions: [],
+        questions: defaultQuestions,
         plan_markdown: `# ${cleanTitle}\n\n${universalPlan}`,
       };
 
