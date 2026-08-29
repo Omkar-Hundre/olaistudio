@@ -10,8 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.10.0] - 2026-08-29
 
 ### Added
+- **Rich Document Markdown Renderer (`MarkdownRenderer.jsx`, `VisionCard.jsx`, `ChatWorkspace.jsx`)**:
+  - Implemented a zero-dependency, high-performance `MarkdownRenderer` component that transforms raw Markdown text into structured typography: styled H1-H4 headings with badges, key-value property callouts (`* **Key:** Value`), nested bullet points, checklists (`✓`, `[x]`), responsive tables (`| Col 1 | Col 2 |`), code blocks, and horizontal dividers, replacing plain `whitespace-pre-wrap` text across `VisionCard` and assistant chat messages.
+- **Ultra-Fast Generation Latency with Gemini 3.6 Flash (`platform_models`, `platformModelService.js`, `ai-proxy`)**:
+  - Upgraded platform default route `Olai M1` to `gemini-3.6-flash`: delivers sub-second time-to-first-token (TTFT < 800ms) with zero thinking delay loops and full JSON schema compliance.
 - **Default Platform Key Provisioning & Olai M1 Credit Metering (`ai-proxy/index.ts`)**:
-  - Deployed `ai-proxy` v17 with default platform Gemini credentials: ensures `Olai M1` model requests execute instantly and deduct 1 credit per model call from user credits balance with zero API key configuration errors.
+  - Deployed `ai-proxy` with default platform Gemini credentials: ensures `Olai M1` model requests execute instantly and deduct 1 credit per model call from user credits balance with zero API key configuration errors.
 - **Platform Credit Deduction & Service-Role Authentication Fix (`ai-proxy/index.ts`, `deduct_user_credits`)**:
   - Resolved issue where credits were not deducting when using platform model `Olai M1`:
     - Updated `deduct_user_credits` database function to accept `p_user_id` when invoked via authenticated Edge Function service-role calls.

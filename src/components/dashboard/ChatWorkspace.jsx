@@ -28,6 +28,7 @@ import { supabase } from '../../lib/supabase';
 import QuestionnaireCard from './QuestionnaireCard';
 import VisionCard from './VisionCard';
 import DevPayloadInspector from './DevPayloadInspector';
+import MarkdownRenderer from '../ui/MarkdownRenderer';
 import {
   Paperclip,
   ArrowUp,
@@ -832,9 +833,13 @@ export default function ChatWorkspace({
                               </div>
                             </details>
                           )}
-                          <p className="whitespace-pre-wrap">
-                            {msg.displayContent || msg.content}
-                          </p>
+                          {isUser ? (
+                            <p className="whitespace-pre-wrap">
+                              {msg.displayContent || msg.content}
+                            </p>
+                          ) : (
+                            <MarkdownRenderer content={msg.displayContent || msg.content} />
+                          )}
                         </>
                       )}
                     </div>

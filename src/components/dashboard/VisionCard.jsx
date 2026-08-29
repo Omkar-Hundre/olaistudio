@@ -12,6 +12,7 @@
 
 import React, { useState } from 'react';
 import { Sparkles, Copy, Check, ArrowRight, FileText, Edit3, X, Save } from 'lucide-react';
+import MarkdownRenderer from '../ui/MarkdownRenderer.jsx';
 
 export default function VisionCard({
   visionContent,
@@ -129,8 +130,8 @@ export default function VisionCard({
           />
         </div>
       ) : (
-        <div className="p-6 max-h-[500px] overflow-y-auto space-y-4 text-xs sm:text-[13px] text-slate-800 dark:text-zinc-200 leading-relaxed font-normal whitespace-pre-wrap selection:bg-slate-200 dark:selection:bg-zinc-800">
-          {visionContent}
+        <div className="p-6 max-h-[550px] overflow-y-auto space-y-4 text-xs sm:text-[13px] text-slate-800 dark:text-zinc-200 leading-relaxed font-normal selection:bg-slate-200 dark:selection:bg-zinc-800 custom-scrollbar">
+          <MarkdownRenderer content={visionContent} />
         </div>
       )}
 
