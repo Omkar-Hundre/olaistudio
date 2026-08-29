@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.9.0] - 2026-08-29
 
 ### Added
+- **Live Raw Stream Thinking & Instant Modal Extraction (`systemCommandParser.js`, `ChatWorkspace.jsx`)**:
+  - Rendered live raw model streaming in the message bubble during the generation/thinking stage.
+  - On stream completion, instantly converted question text (including `Option 1`, `Choice A`, indented sub-lines) into the interactive Questionnaire Modal while leaving the concise greeting in the chat bubble.
 - **Strict Deterministic JSON Guardrails (`workspace_modes`, `systemCommandParser.js`)**:
   - Implemented strict JSON schema specification in `workspace_modes` so all AI responses follow a deterministic structured payload (`greeting`, `questions`, `confidence_score`, `plan_markdown`).
   - Added live greeting stream preview extraction so users see real-time text while the underlying structured payload is processed.

@@ -1,21 +1,11 @@
 /**
  * ==============================================================================
- * System Command & Structured JSON Response Parser
+ * System Command & Structured Response Parser
  * ==============================================================================
- * Industrial-grade parser that:
- * 1. Supports deterministic Pure JSON payloads from AI modes:
- *    {
- *      "greeting": "...",
- *      "suggested_title": "...",
- *      "confidence_score": 35,
- *      "current_branch": "...",
- *      "ready_for_vision": false,
- *      "cta_label": "Cook",
- *      "questions": [{ "id": "q1", "question": "...", "options": [...] }],
- *      "plan_markdown": "..."
- *    }
- * 2. Parses %%%SYSTEM_CMD%%% blocks and Markdown text questions as fallback
- * 3. Handles markdown code fences (```json ... ```), partial stream JSON, and unescaped quotes
+ * High-performance parser that:
+ * 1. Supports deterministic Pure JSON payloads from AI modes
+ * 2. Rapidly extracts markdown questions and options (Option 1, Choice A, A:, 1., etc.)
+ * 3. Strips question lists from completed assistant chat bubbles so the modal renders cleanly
  * ==============================================================================
  */
 
@@ -33,7 +23,7 @@ export function safeJsonParse(raw) {
     .replace(/\s*```$/, '')
     .trim();
 
-  // 2. Try direct JSON parse
+  // 2. Direct JSON parse
   try {
     return JSON.parse(clean);
   } catch {}
@@ -46,7 +36,7 @@ export function safeJsonParse(raw) {
     return JSON.parse(fixedTrailingCommas);
   } catch {}
 
-  // 4. Regex-based field reconstruction for streaming or imperfect payloads
+  // 4. Regex extraction fallback
   try {
     const extracted = {};
 
@@ -83,7 +73,6 @@ export function safeJsonParse(raw) {
       }
     }
 
-    // Extract questions array block
     const questionsBlockMatch = clean.match(/"questions"\s*:\s*(\[[\s\S]*?\])\s*(?:,|}|\n)/);
     if (questionsBlockMatch) {
       try {
@@ -96,7 +85,7 @@ export function safeJsonParse(raw) {
             return {
               id: m[1] || `q${idx + 1}`,
               question: m[2],
-              options: options.length > 0 ? options : ['Option A', 'Option B', 'Option C'],
+              options: options.length > 0 ? options : ['Option 1', 'Option 2', 'Option 3'],
             };
           });
         }
@@ -129,8 +118,8 @@ export function extractStructuredQuestionsFromText(text) {
     const line = lines[i];
     const trimmed = line.trim();
 
-    // Check for question line:
-    // e.g. "1. **When people...**", "1. To begin...", "### 1. ...", "Question 1: ..."
+    // Check for question header:
+    // e.g. "1. **When lots of people...**", "1. To begin...", "### 1. ...", "Question 1: ..."
     const isQuestionLine = /^(?:###\s+)?(?:\*\*)?(?:(?:\d+\.|\d+\)|\?|Question\s+\d+:?))\s*(?:\*\*)?\s*(.+)/i.test(trimmed);
 
     if (isQuestionLine && (trimmed.includes('?') || trimmed.includes(':') || trimmed.includes('**'))) {
@@ -153,14 +142,14 @@ export function extractStructuredQuestionsFromText(text) {
     }
 
     // Check for option line:
-    // e.g. "* **Choice A:** ...", "* **A:** ...", "- A) ...", "A. ..."
-    const isOptionLine = /^(?:[-*•]\s+)?(?:\*\*)?(?:Choice\s+)?[A-DА-Я0-9][.:)]\s*(?:\*\*)?\s*(.+)/i.test(trimmed) ||
-                         /^(?:[-*•]\s+)\*\*(?:Choice\s+)?[A-DА-Я0-9]:\*\*\s*(.+)/i.test(trimmed);
+    // e.g. "* **Option 1:** ...", "* **Choice A:** ...", "* **A:** ...", "- A) ...", "A. ..."
+    const isOptionLine = /^(?:[-*•]\s+)?(?:\*\*)?(?:(?:Option|Choice)\s+)?(?:[A-DА-Я0-9]|\d+)[.:)]\s*(?:\*\*)?\s*(.+)/i.test(trimmed) ||
+                         /^(?:[-*•]\s+)\*\*(?:(?:Option|Choice)\s+)?[A-DА-Я0-9\d]+:\*\*\s*(.+)/i.test(trimmed);
 
     if (currentQ && isOptionLine) {
       const cleanOption = trimmed
-        .replace(/^(?:[-*•]\s+)?(?:\*\*)?(?:Choice\s+)?[A-DА-Я0-9][.:)]\s*(?:\*\*)?\s*/i, '')
-        .replace(/^(?:[-*•]\s+)\*\*(?:Choice\s+)?[A-DА-Я0-9]:\*\*\s*/i, '')
+        .replace(/^(?:[-*•]\s+)?(?:\*\*)?(?:(?:Option|Choice)\s+)?[A-DА-Я0-9\d]+[.:)]\s*(?:\*\*)?\s*/i, '')
+        .replace(/^(?:[-*•]\s+)\*\*(?:(?:Option|Choice)\s+)?[A-DА-Я0-9\d]+:\*\*\s*/i, '')
         .replace(/^\*+|\*+$/g, '')
         .trim();
 
@@ -191,7 +180,7 @@ export function extractStructuredQuestionsFromText(text) {
     questions.push(currentQ);
   }
 
-  // Ensure every question has 3 valid options
+  // Ensure every question has valid options
   const validQuestions = questions.filter(q => q.question && q.question.length > 5).map((q, idx) => ({
     id: q.id || `q${idx + 1}`,
     question: q.question,
