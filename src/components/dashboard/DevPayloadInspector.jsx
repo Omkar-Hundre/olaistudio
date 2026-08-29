@@ -15,6 +15,7 @@
 import React, { useState } from 'react';
 import { Terminal, X, Copy, Check, ShieldAlert, Cpu, Database, Eye } from 'lucide-react';
 import { estimateTokens } from '../../utils/tokenBudget';
+import { buildCategorizedMemory } from '../../services/categorizedMemoryService';
 
 export default function DevPayloadInspector({
   activeMode,
@@ -47,6 +48,15 @@ export default function DevPayloadInspector({
       role: m.role,
       content,
     };
+  });
+
+  const memoryData = buildCategorizedMemory({
+    messages,
+    sessionTitle: activeMode?.name || 'Active Project',
+    currentBranch,
+    confidenceScore: alignmentScore || 35,
+    visionContent,
+    activeQuestions,
   });
 
   const systemPromptText = activeMode?.systemPrompt || '';
@@ -110,6 +120,7 @@ export default function DevPayloadInspector({
                     systemPrompt: systemPromptText,
                     globalContext: globalContextText,
                     parentContext: parentContextText,
+                    categorizedMemory: memoryData,
                     messages: wirePayload,
                   })}
                   className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-slate-200 dark:border-zinc-700 text-[11px] font-mono text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
@@ -163,7 +174,7 @@ export default function DevPayloadInspector({
                     : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-200/60 dark:hover:bg-zinc-800'
                 }`}
               >
-                3-Level Memory
+                3-Level Categorized Memory
               </button>
             </div>
 
@@ -199,33 +210,42 @@ export default function DevPayloadInspector({
                   <div className="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/40">
                     <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-900 dark:text-zinc-100 mb-1">
                       <Cpu className="h-3.5 w-3.5 text-indigo-500" />
-                      <span>Level 1: React Working Memory</span>
+                      <span>Level 1: Working Turn Memory (Live React State)</span>
                     </div>
-                    <p className="text-[11px] text-slate-600 dark:text-zinc-400">
-                      Messages in state: {messages.length} • Alignment Score: {alignmentScore ?? 35}% • Active Questions: {activeQuestions.length}
+                    <p className="text-[11px] text-slate-600 dark:text-zinc-400 mb-2">
+                      Turns: {messages.length} • Alignment Score: {alignmentScore ?? 35}% • Active Questions: {activeQuestions.length}
                     </p>
+                    <div className="p-2.5 rounded-lg bg-slate-900 text-slate-100 dark:bg-zinc-950 text-[10.5px]">
+                      Latest Turn Content: "{messages[messages.length - 1]?.displayContent || messages[messages.length - 1]?.content || 'None'}"
+                    </div>
                   </div>
 
                   {/* Level 2 */}
                   <div className="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/40">
                     <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-900 dark:text-zinc-100 mb-1">
                       <Database className="h-3.5 w-3.5 text-emerald-500" />
-                      <span>Level 2: Root Node Persistence (workflow_nodes)</span>
+                      <span>Level 2: Branch & Node Memory (`workflow_nodes.input_context`)</span>
                     </div>
-                    <p className="text-[11px] text-slate-600 dark:text-zinc-400">
-                      Session ID: {sessionId || 'Unassigned (Pre-call)'} • Focus Branch: {currentBranch || 'Core Setup'}
+                    <p className="text-[11px] text-slate-600 dark:text-zinc-400 mb-2">
+                      Categorized Paragraphs Stored in Database Node:
                     </p>
+                    <pre className="p-2.5 rounded-lg bg-slate-900 text-slate-100 dark:bg-zinc-950 text-[10.5px] whitespace-pre-wrap">
+                      {memoryData.nodeContext}
+                    </pre>
                   </div>
 
                   {/* Level 3 */}
                   <div className="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/40">
                     <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-900 dark:text-zinc-100 mb-1">
                       <Eye className="h-3.5 w-3.5 text-amber-500" />
-                      <span>Level 3: Session Vision & Strategy (workflow_sessions)</span>
+                      <span>Level 3: Strategic Master Project Memory (`workflow_sessions.global_context`)</span>
                     </div>
-                    <p className="text-[11px] text-slate-600 dark:text-zinc-400">
-                      Vision Content: {visionContent ? `${visionContent.length} chars (Ready for review)` : 'Not yet generated (Confidence < 85%)'}
+                    <p className="text-[11px] text-slate-600 dark:text-zinc-400 mb-2">
+                      Categorized Narrative Paragraphs Injected into Model System Context:
                     </p>
+                    <pre className="p-2.5 rounded-lg bg-slate-900 text-slate-100 dark:bg-zinc-950 text-[10.5px] whitespace-pre-wrap">
+                      {memoryData.narrative}
+                    </pre>
                   </div>
                 </div>
               )}

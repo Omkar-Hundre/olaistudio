@@ -10,6 +10,7 @@
  */
 
 import { supabase } from '../lib/supabase';
+import { buildCategorizedMemory } from './categorizedMemoryService';
 
 /**
  * Creates a new workflow session (Mother Agent root session)
@@ -104,13 +105,26 @@ export async function saveRootSessionState({
 }) {
   if (!sessionId) return { success: false, error: 'Session ID required' };
   try {
-    // 1. Update session row
+    // Generate 3-Level Categorized Memory paragraphs
+    const memory = buildCategorizedMemory({
+      messages,
+      currentBranch,
+      confidenceScore,
+      visionContent,
+      activeQuestions: questions,
+    });
+
+    // 1. Update session row with Level 3 Categorized Global Memory
     const { error: sessionErr } = await supabase
       .from('workflow_sessions')
       .update({
         confidence_score: confidenceScore,
         vision_content: visionContent || null,
         status: visionContent ? 'vision_ready' : 'interviewing',
+        global_context: {
+          narrative: memory.narrative,
+          structured: memory.structured,
+        },
         updated_at: new Date().toISOString(),
       })
       .eq('id', sessionId);
@@ -133,6 +147,9 @@ export async function saveRootSessionState({
         .from('workflow_nodes')
         .update({
           conversation_history: messages,
+          input_context: {
+            narrative: memory.nodeContext,
+          },
           hidden_commands: {
             confidence_score: confidenceScore,
             current_branch: currentBranch,
@@ -156,6 +173,9 @@ export async function saveRootSessionState({
           title: 'Mother Agent Interview',
           status: 'completed',
           conversation_history: messages,
+          input_context: {
+            narrative: memory.nodeContext,
+          },
           hidden_commands: {
             confidence_score: confidenceScore,
             current_branch: currentBranch,

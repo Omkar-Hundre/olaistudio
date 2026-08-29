@@ -50,9 +50,19 @@ Deno.serve(async (req) => {
       model = "gemini-2.0-flash",
       messages = [],
       systemPrompt = "",
+      globalContext = "",
+      parentContext = "",
+      isPlatform = true,
       stream = false,
       responseFormat = "json",
     } = await req.json();
+
+    // Construct full 3-level system instruction
+    const combinedSystemInstruction = [
+      systemPrompt?.trim() || "",
+      globalContext?.trim() ? `\n\n### LEVEL 3 GLOBAL PROJECT MEMORY:\n${globalContext.trim()}` : "",
+      parentContext?.trim() ? `\n\n### LEVEL 2 ACTIVE FOCUS & BRANCH MEMORY:\n${parentContext.trim()}` : "",
+    ].filter(Boolean).join("\n");
 
     // Fetch user's custom API keys if present
     const { data: customKeys } = await supabaseClient
@@ -143,9 +153,9 @@ Deno.serve(async (req) => {
           },
         };
 
-        if (systemPrompt && systemPrompt.trim()) {
+        if (combinedSystemInstruction && combinedSystemInstruction.trim()) {
           requestBody.system_instruction = {
-            parts: [{ text: systemPrompt.trim() }],
+            parts: [{ text: combinedSystemInstruction.trim() }],
           };
         }
 
@@ -342,9 +352,9 @@ Deno.serve(async (req) => {
         },
       };
 
-      if (systemPrompt && systemPrompt.trim()) {
+      if (combinedSystemInstruction && combinedSystemInstruction.trim()) {
         requestBody.system_instruction = {
-          parts: [{ text: systemPrompt.trim() }],
+          parts: [{ text: combinedSystemInstruction.trim() }],
         };
       }
 
@@ -367,8 +377,8 @@ Deno.serve(async (req) => {
       reply = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
     } else {
       const openaiMessages = [...messages];
-      if (systemPrompt && systemPrompt.trim()) {
-        openaiMessages.unshift({ role: "system", content: systemPrompt.trim() });
+      if (combinedSystemInstruction && combinedSystemInstruction.trim()) {
+        openaiMessages.unshift({ role: "system", content: combinedSystemInstruction.trim() });
       }
 
       const openaiUrl = "https://api.openai.com/v1/chat/completions";
