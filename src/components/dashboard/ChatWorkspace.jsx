@@ -24,6 +24,8 @@ import { parseLocalFile } from '../../utils/fileParser';
 import { uploadFilesSecurely } from '../../services/s3Service';
 import { parseSystemCommands } from '../../utils/systemCommandParser';
 import { createWorkflowSession, updateWorkflowSession } from '../../services/workflowService';
+import QuestionnaireCard from './QuestionnaireCard';
+import VisionCard from './VisionCard';
 import {
   Paperclip,
   ArrowUp,
@@ -75,6 +77,10 @@ export default function ChatWorkspace({ onCreditDeducted }) {
   const [alignmentScore, setAlignmentScore] = useState(null);
   const [currentBranch, setCurrentBranch] = useState('');
   const [sessionTitle, setSessionTitle] = useState('New Session');
+  const [activeQuestions, setActiveQuestions] = useState([]);
+  const [visionContent, setVisionContent] = useState('');
+  const [ctaLabel, setCtaLabel] = useState('Cook & Build ⚡');
+  const [isExecuting, setIsExecuting] = useState(false);
 
   // Active Mode State
   const [activeMode, setActiveMode] = useState(null);
@@ -404,6 +410,23 @@ export default function ChatWorkspace({ onCreditDeducted }) {
               updateWorkflowSession(activeSessionId, { title: commands.suggested_title });
             }
           }
+          if (commands.questions && Array.isArray(commands.questions) && commands.questions.length > 0) {
+            setActiveQuestions(commands.questions);
+          } else {
+            setActiveQuestions([]);
+          }
+          if (commands.ready_for_vision || (commands.confidence_score !== undefined && commands.confidence_score >= 85)) {
+            setVisionContent(cleanText);
+            setActiveQuestions([]);
+            if (commands.cta_label) setCtaLabel(commands.cta_label);
+            if (activeSessionId) {
+              updateWorkflowSession(activeSessionId, {
+                vision_content: cleanText,
+                status: 'vision_ready',
+                confidence_score: Math.max(85, commands.confidence_score || 85),
+              });
+            }
+          }
         }
 
         if (onCreditDeducted && selectedModel.isPlatform) {
@@ -604,6 +627,31 @@ export default function ChatWorkspace({ onCreditDeducted }) {
                 <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
                 <span>{errorMessage}</span>
               </div>
+            )}
+
+            {/* Active Questionnaire Card */}
+            {activeQuestions && activeQuestions.length > 0 && !isSending && (
+              <QuestionnaireCard
+                questions={activeQuestions}
+                onSubmit={(clarificationsPayload) => {
+                  setActiveQuestions([]);
+                  handleSendMessage(clarificationsPayload);
+                }}
+                isSending={isSending}
+              />
+            )}
+
+            {/* Synthesized Master Vision Card */}
+            {visionContent && (
+              <VisionCard
+                visionContent={visionContent}
+                ctaLabel={ctaLabel}
+                onProceed={() => {
+                  setIsExecuting(true);
+                  setErrorMessage('Vision approved. Ready to deploy multi-level execution graph in Phase 4.');
+                }}
+                isExecuting={isExecuting}
+              />
             )}
 
             <div ref={messagesEndRef} />

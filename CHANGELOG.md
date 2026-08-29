@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.9.0] - 2026-08-29
 
 ### Added
+- **Interactive 4-Option Questionnaire Stepper (`QuestionnaireCard.jsx`)**:
+  - Implemented 1-question-at-a-time interactive stepper containing 3 tailored structured options + 1 custom write-in input box.
+  - Added smooth Back/Next navigation and single-turn consolidated submission to minimize API token calls.
+  - Built `VisionCard.jsx` displaying the synthesized Master Vision with copy support and dynamic action button (`cta_label` e.g., "Cook & Build ⚡", "Begin Execution 🚀").
 - **Mother Agent "Grill-Me" Interview Engine & Alignment UI (`ChatWorkspace.jsx`)**:
   - Authored and seeded Mother Agent system prompts across all 4 modes in `public.workspace_modes` (35% baseline score, 1-2 focused questions, hidden `%%%SYSTEM_CMD%%%` block).
   - Built a minimal, borderless sticky Alignment Progress Bar with spring fill animation from 35% $\rightarrow$ 85%+.
