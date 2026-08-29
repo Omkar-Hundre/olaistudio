@@ -34,7 +34,10 @@ export default function Sidebar({
   currentTab = 'overview', 
   onSelectTab,
   onOpenSettings,
-  previousProjects = []
+  previousProjects = [],
+  onNewChat,
+  onSelectProject,
+  activeProjectId,
 }) {
   const { user, profile, signOut } = useAuth();
   const { logoSrc } = useTheme();
@@ -105,7 +108,8 @@ export default function Sidebar({
           <button
             type="button"
             onClick={() => {
-              if (onSelectTab) onSelectTab('overview');
+              if (onNewChat) onNewChat();
+              else if (onSelectTab) onSelectTab('overview');
               if (onCloseMobile) onCloseMobile();
             }}
             className={`flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900/90 py-2 text-[12.5px] font-medium text-slate-800 dark:text-zinc-200 shadow-2xs transition-all hover:bg-slate-50 dark:hover:bg-zinc-800 active:scale-[0.99] cursor-pointer ${
@@ -184,16 +188,32 @@ export default function Sidebar({
                   </p>
                 )
               ) : (
-                previousProjects.map((project) => (
-                  <button
-                    key={project.id}
-                    type="button"
-                    className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[12.5px] text-slate-600 dark:text-zinc-400 hover:bg-slate-200/50 dark:hover:bg-zinc-800/60 hover:text-slate-900 dark:hover:text-zinc-200 transition-colors"
-                  >
-                    <Clock className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-zinc-500" />
-                    {!isCollapsed && <span className="truncate">{project.name}</span>}
-                  </button>
-                ))
+                previousProjects.map((project) => {
+                  const isSelected = activeProjectId === project.id;
+                  return (
+                    <button
+                      key={project.id}
+                      type="button"
+                      onClick={() => {
+                        if (onSelectProject) onSelectProject(project.id);
+                        if (onCloseMobile) onCloseMobile();
+                      }}
+                      className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[12.5px] transition-colors text-left ${
+                        isSelected
+                          ? 'bg-slate-200/80 dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 font-medium'
+                          : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-200/50 dark:hover:bg-zinc-800/60 hover:text-slate-900 dark:hover:text-zinc-200'
+                      }`}
+                      title={project.title || project.name || 'Untitled Project'}
+                    >
+                      <Clock className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-zinc-500" />
+                      {!isCollapsed && (
+                        <span className="truncate flex-1">
+                          {project.title || project.name || 'Untitled Project'}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })
               )}
             </div>
           </div>

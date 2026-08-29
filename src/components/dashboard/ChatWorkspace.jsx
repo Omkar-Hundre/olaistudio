@@ -23,7 +23,8 @@ import { getPlatformModels } from '../../services/platformModelService';
 import { parseLocalFile } from '../../utils/fileParser';
 import { uploadFilesSecurely } from '../../services/s3Service';
 import { parseSystemCommands } from '../../utils/systemCommandParser';
-import { createWorkflowSession, updateWorkflowSession } from '../../services/workflowService';
+import { createWorkflowSession, updateWorkflowSession, getWorkflowSession, saveRootSessionState } from '../../services/workflowService';
+import { supabase } from '../../lib/supabase';
 import QuestionnaireCard from './QuestionnaireCard';
 import VisionCard from './VisionCard';
 import {
@@ -63,7 +64,11 @@ const DEFAULT_PLACEHOLDERS = [
   'Break down a complex engineering task into stages...',
 ];
 
-export default function ChatWorkspace({ onCreditDeducted }) {
+export default function ChatWorkspace({
+  activeSessionId = null,
+  onCreditDeducted,
+  onSessionCreated,
+}) {
   const { user } = useAuth();
   const [workspaceModes, setWorkspaceModes] = useState(DEFAULT_WORKSPACE_MODES);
   const [messages, setMessages] = useState([]);
@@ -74,17 +79,59 @@ export default function ChatWorkspace({ onCreditDeducted }) {
   const [showCalloutCard, setShowCalloutCard] = useState(true);
 
   // Mother Agent Workflow & Alignment State
-  const [sessionId, setSessionId] = useState(null);
+  const [sessionId, setSessionId] = useState(activeSessionId);
   const [alignmentScore, setAlignmentScore] = useState(null);
   const [currentBranch, setCurrentBranch] = useState('');
   const [sessionTitle, setSessionTitle] = useState('New Session');
   const [activeQuestions, setActiveQuestions] = useState([]);
   const [visionContent, setVisionContent] = useState('');
-  const [ctaLabel, setCtaLabel] = useState('Cook & Build ⚡');
+  const [ctaLabel, setCtaLabel] = useState('Cook');
   const [isExecuting, setIsExecuting] = useState(false);
 
   // Active Mode State
   const [activeMode, setActiveMode] = useState(null);
+
+  // Load existing session data when activeSessionId changes
+  useEffect(() => {
+    if (activeSessionId) {
+      setSessionId(activeSessionId);
+      getWorkflowSession(activeSessionId).then(({ session }) => {
+        if (session) {
+          setAlignmentScore(session.confidence_score ?? 35);
+          setSessionTitle(session.title || 'New Session');
+          if (session.vision_content) {
+            setVisionContent(session.vision_content);
+          }
+        }
+      });
+
+      supabase
+        .from('workflow_nodes')
+        .select('conversation_history, hidden_commands')
+        .eq('session_id', activeSessionId)
+        .is('parent_id', null)
+        .maybeSingle()
+        .then(({ data: rootNode }) => {
+          if (rootNode?.conversation_history && Array.isArray(rootNode.conversation_history)) {
+            setMessages(rootNode.conversation_history);
+          }
+          if (rootNode?.hidden_commands) {
+            const cmd = rootNode.hidden_commands;
+            if (cmd.current_branch) setCurrentBranch(cmd.current_branch);
+            if (cmd.questions && Array.isArray(cmd.questions)) setActiveQuestions(cmd.questions);
+            if (cmd.cta_label) setCtaLabel(cmd.cta_label);
+          }
+        });
+    } else {
+      setSessionId(null);
+      setMessages([]);
+      setAlignmentScore(null);
+      setCurrentBranch('');
+      setActiveQuestions([]);
+      setVisionContent('');
+      setErrorMessage('');
+    }
+  }, [activeSessionId]);
 
   // Load and sync modes from Supabase
   useEffect(() => {
@@ -395,14 +442,22 @@ export default function ChatWorkspace({ onCreditDeducted }) {
           return next;
         });
 
+        let targetScore = alignmentScore || 35;
+        let targetBranch = currentBranch;
+        let targetQuestions = [];
+        let targetVision = visionContent;
+        let targetCta = ctaLabel;
+
         if (commands) {
           if (commands.confidence_score !== undefined) {
+            targetScore = commands.confidence_score;
             setAlignmentScore(commands.confidence_score);
             if (activeSessionId) {
               updateWorkflowSession(activeSessionId, { confidence_score: commands.confidence_score });
             }
           }
           if (commands.current_branch) {
+            targetBranch = commands.current_branch;
             setCurrentBranch(commands.current_branch);
           }
           if (commands.suggested_title) {
@@ -412,14 +467,19 @@ export default function ChatWorkspace({ onCreditDeducted }) {
             }
           }
           if (commands.questions && Array.isArray(commands.questions) && commands.questions.length > 0) {
+            targetQuestions = commands.questions;
             setActiveQuestions(commands.questions);
           } else {
             setActiveQuestions([]);
           }
           if (commands.ready_for_vision || (commands.confidence_score !== undefined && commands.confidence_score >= 85)) {
+            targetVision = cleanText;
             setVisionContent(cleanText);
             setActiveQuestions([]);
-            if (commands.cta_label) setCtaLabel(commands.cta_label);
+            if (commands.cta_label) {
+              targetCta = commands.cta_label;
+              setCtaLabel(commands.cta_label);
+            }
             if (activeSessionId) {
               updateWorkflowSession(activeSessionId, {
                 vision_content: cleanText,
@@ -427,6 +487,23 @@ export default function ChatWorkspace({ onCreditDeducted }) {
                 confidence_score: Math.max(85, commands.confidence_score || 85),
               });
             }
+          }
+        }
+
+        // Persist root node turn and conversation history to Supabase
+        if (activeSessionId) {
+          saveRootSessionState({
+            sessionId: activeSessionId,
+            messages: [...updatedHistory, { role: 'assistant', content: cleanText, isStreaming: false, timestamp: new Date().toISOString() }],
+            confidenceScore: targetScore,
+            currentBranch: targetBranch,
+            visionContent: targetVision,
+            questions: targetQuestions,
+            ctaLabel: targetCta,
+          });
+
+          if (!sessionId && onSessionCreated) {
+            onSessionCreated(activeSessionId);
           }
         }
 
@@ -614,11 +691,10 @@ export default function ChatWorkspace({ onCreditDeducted }) {
               </div>
             )}
 
-            {/* INLINE ALIGNMENT PROGRESS BAR (Shown below user prompt & response) */}
-            {alignmentScore !== null && (
+            {/* INLINE ALIGNMENT PROGRESS BAR (Shown only if no questions card or vision card is active) */}
+            {alignmentScore !== null && activeQuestions.length === 0 && !visionContent && (
               <div className="w-full rounded-2xl border border-slate-200/80 dark:border-zinc-800/80 bg-white/70 dark:bg-[#1A1D24]/70 backdrop-blur-xs px-5 py-3 shadow-2xs transition-all animate-in fade-in">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-                  {/* Left: Progress meter */}
                   <div className="flex items-center gap-3 w-full sm:w-auto min-w-[200px]">
                     <span className="text-xs font-medium text-slate-700 dark:text-zinc-300 whitespace-nowrap">
                       Alignment {alignmentScore}%
@@ -631,7 +707,6 @@ export default function ChatWorkspace({ onCreditDeducted }) {
                     </div>
                   </div>
 
-                  {/* Center: Current Focus */}
                   {currentBranch && (
                     <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-zinc-400 truncate">
                       <span className="text-slate-400 dark:text-zinc-500">Focus:</span>
@@ -639,7 +714,6 @@ export default function ChatWorkspace({ onCreditDeducted }) {
                     </div>
                   )}
 
-                  {/* Right: Skip & Build Anyway Button */}
                   {alignmentScore < 85 && (
                     <button
                       type="button"
@@ -649,17 +723,20 @@ export default function ChatWorkspace({ onCreditDeducted }) {
                       title="Bypass remaining questions and generate Vision immediately"
                     >
                       <Zap className="h-3.5 w-3.5 text-amber-500 fill-amber-500/20" />
-                      <span>Skip & Build Anyway</span>
+                      <span>Skip & Build</span>
                     </button>
                   )}
                 </div>
               </div>
             )}
 
-            {/* Active Questionnaire Card */}
+            {/* Active Questionnaire Card with Integrated Alignment Meter & Skip Button */}
             {activeQuestions && activeQuestions.length > 0 && !isSending && (
               <QuestionnaireCard
                 questions={activeQuestions}
+                alignmentScore={alignmentScore ?? 35}
+                currentBranch={currentBranch}
+                onSkip={() => handleSendMessage('Proceed immediately: finalize and generate the complete plan with all current context.')}
                 onSubmit={(clarificationsPayload) => {
                   setActiveQuestions([]);
                   handleSendMessage(clarificationsPayload);

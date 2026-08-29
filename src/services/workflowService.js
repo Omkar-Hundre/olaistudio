@@ -66,6 +66,108 @@ export async function getWorkflowSession(sessionId) {
 }
 
 /**
+ * Fetches all workflow sessions for a user ordered by most recently updated
+ * @param {string} userId
+ * @returns {Promise<{ sessions: Array, error: string | null }>}
+ */
+export async function getUserWorkflowSessions(userId) {
+  if (!userId) return { sessions: [], error: null };
+  try {
+    const { data, error } = await supabase
+      .from('workflow_sessions')
+      .select('id, title, mode, status, confidence_score, vision_content, created_at, updated_at')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false })
+      .limit(30);
+
+    if (error) throw error;
+    return { sessions: data || [], error: null };
+  } catch (err) {
+    console.error('Error fetching user workflow sessions:', err);
+    return { sessions: [], error: err.message };
+  }
+}
+
+/**
+ * Saves/upserts the full root conversation history into workflow_nodes and workflow_sessions
+ * @param {Object} params
+ * @returns {Promise<{ success: boolean, error: string | null }>}
+ */
+export async function saveRootSessionState({
+  sessionId,
+  messages = [],
+  confidenceScore = 35,
+  currentBranch = '',
+  visionContent = '',
+  questions = [],
+  ctaLabel = 'Cook',
+}) {
+  if (!sessionId) return { success: false, error: 'Session ID required' };
+  try {
+    // 1. Update session row
+    await supabase
+      .from('workflow_sessions')
+      .update({
+        confidence_score: confidenceScore,
+        vision_content: visionContent || null,
+        status: visionContent ? 'vision_ready' : 'interviewing',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', sessionId);
+
+    // 2. Find or create root node (depth = 0, parent_id is null)
+    const { data: existingNodes } = await supabase
+      .from('workflow_nodes')
+      .select('id')
+      .eq('session_id', sessionId)
+      .is('parent_id', null)
+      .limit(1);
+
+    const rootNodeId = existingNodes?.[0]?.id;
+
+    if (rootNodeId) {
+      await supabase
+        .from('workflow_nodes')
+        .update({
+          conversation_history: messages,
+          hidden_commands: {
+            confidence_score: confidenceScore,
+            current_branch: currentBranch,
+            questions,
+            cta_label: ctaLabel,
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', rootNodeId);
+    } else {
+      await supabase
+        .from('workflow_nodes')
+        .insert({
+          session_id: sessionId,
+          parent_id: null,
+          node_type: 'root',
+          depth: 0,
+          order_index: 0,
+          title: 'Mother Agent Interview',
+          status: 'completed',
+          conversation_history: messages,
+          hidden_commands: {
+            confidence_score: confidenceScore,
+            current_branch: currentBranch,
+            questions,
+            cta_label: ctaLabel,
+          },
+        });
+    }
+
+    return { success: true, error: null };
+  } catch (err) {
+    console.error('Error saving root session state:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
  * Updates a workflow session record
  * @param {string} sessionId
  * @param {Object} updates

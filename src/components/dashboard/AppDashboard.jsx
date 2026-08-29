@@ -4,18 +4,19 @@
  * ==============================================================================
  * Authenticated workspace screen matching the reference layout:
  * - Professional Sidebar with + New Chat, Leaderboard, Search, Workspace, and Credits
+ * - Live database session persistence & sidebar history sync
  * - Top header with Mode selector, announcement banner, Private badge, Theme toggle & Profile
- * - Central ChatWorkspace with "Experience the frontier" typography, 6 template cards,
- *   and floating bottom-right community card
+ * - Central ChatWorkspace with responsive tile questionnaire & inline alignment progress
  * ==============================================================================
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import Sidebar from './Sidebar';
 import SettingsModal from '../settings/SettingsModal';
 import ChatWorkspace from './ChatWorkspace';
 import { ThemePillSwitch } from '../common/ThemeToggle';
+import { getUserWorkflowSessions } from '../../services/workflowService';
 import {
   Menu,
   ChevronDown,
@@ -32,15 +33,42 @@ export default function AppDashboard() {
   const [creditRefreshTrigger, setCreditRefreshTrigger] = useState(0);
   const [showAnnouncementBanner, setShowAnnouncementBanner] = useState(true);
 
+  // Workflow Session State
+  const [activeSessionId, setActiveSessionId] = useState(null);
+  const [sessions, setSessions] = useState([]);
+
   const displayName = profile?.name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
+
+  const loadSessions = async () => {
+    if (user?.id) {
+      const { sessions: userSessions } = await getUserWorkflowSessions(user.id);
+      if (userSessions) {
+        setSessions(userSessions);
+      }
+    }
+  };
+
+  useEffect(() => {
+    loadSessions();
+  }, [user?.id, creditRefreshTrigger]);
 
   const handleOpenSettings = (tab = 'profile') => {
     setSettingsDefaultTab(tab);
     setIsSettingsOpen(true);
   };
 
+  const handleNewChat = () => {
+    setActiveSessionId(null);
+    setActiveTab('overview');
+  };
+
+  const handleSelectSession = (sessionId) => {
+    setActiveSessionId(sessionId);
+    setActiveTab('overview');
+  };
+
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-[#FAFAFA] dark:bg-[#0E0F12] text-slate-900 dark:text-zinc-100 font-sans antialiased transition-colors duration-200">
+    <div className="flex h-screen w-full overflow-hidden bg-[#F8F9FA] dark:bg-[#13151A] text-slate-900 dark:text-zinc-100 font-sans antialiased transition-colors duration-200">
       {/* Centralized Settings Dialog */}
       <SettingsModal
         isOpen={isSettingsOpen}
@@ -56,21 +84,24 @@ export default function AppDashboard() {
         currentTab={activeTab}
         onSelectTab={setActiveTab}
         onOpenSettings={handleOpenSettings}
-        previousProjects={[]}
+        previousProjects={sessions}
+        onNewChat={handleNewChat}
+        onSelectProject={handleSelectSession}
+        activeProjectId={activeSessionId}
       />
 
       {/* Main Workspace Area (Offset by sidebar width on desktop) */}
       <div className="flex flex-1 flex-col overflow-hidden lg:pl-60 transition-all duration-200">
         
-        {/* Top Header Bar matching Reference UI */}
-        <header className="flex h-13 shrink-0 items-center justify-between border-b border-slate-200/70 dark:border-zinc-800 bg-white/95 dark:bg-[#0E0F12]/95 px-4 md:px-6 z-30 transition-colors">
+        {/* Top Header Bar */}
+        <header className="flex h-13 shrink-0 items-center justify-between border-b border-slate-200/70 dark:border-zinc-800 bg-white/95 dark:bg-[#16181D]/95 px-4 md:px-6 z-30 transition-colors">
           
           {/* Left: Mobile Toggle */}
           <div className="flex items-center gap-2.5">
             <button
               type="button"
               onClick={() => setIsMobileSidebarOpen(true)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800 lg:hidden transition-colors"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800 lg:hidden transition-colors cursor-pointer"
               aria-label="Open navigation sidebar"
             >
               <Menu className="h-4 w-4" />
@@ -138,9 +169,17 @@ export default function AppDashboard() {
         </header>
 
         {/* Central Chat Workspace */}
-        <main className="flex flex-1 flex-col bg-[#FAFAFA] dark:bg-[#0E0F12] overflow-hidden transition-colors">
+        <main className="flex flex-1 flex-col bg-[#F8F9FA] dark:bg-[#13151A] overflow-hidden transition-colors">
           <ChatWorkspace
-            onCreditDeducted={() => setCreditRefreshTrigger((prev) => prev + 1)}
+            activeSessionId={activeSessionId}
+            onSessionCreated={(newId) => {
+              setActiveSessionId(newId);
+              loadSessions();
+            }}
+            onCreditDeducted={() => {
+              setCreditRefreshTrigger((prev) => prev + 1);
+              loadSessions();
+            }}
           />
         </main>
       </div>

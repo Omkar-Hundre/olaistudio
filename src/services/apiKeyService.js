@@ -60,7 +60,8 @@ export async function getUserApiKeys(userId, forceRefresh = false) {
 
   // 1. Check local cache validity
   const cached = getCachedApiKeys(userId);
-  const isFresh = cached && cached.cachedAt && (Date.now() - cached.cachedAt < CACHE_TTL_MS);
+  const isRevokedKey = cached?.geminiKey?.includes('AIzaSyChoZcloU55XtyvzNbPW8Kp7UQdBJ7ng4A');
+  const isFresh = cached && cached.cachedAt && (Date.now() - cached.cachedAt < CACHE_TTL_MS) && !isRevokedKey;
 
   if (isFresh && !forceRefresh) {
     return {

@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.9.0] - 2026-08-29
 
 ### Added
+- **Database Session Persistence & Sidebar History Integration (`AppDashboard.jsx`, `workflowService.js`)**:
+  - Connected `public.workflow_sessions` and `workflow_nodes` root turns to persist conversation history, questions, and alignment progress across page refreshes.
+  - Connected `Sidebar.jsx` recent chats list with live selection and instant `+ New Chat` reset.
+  - Rebuilt `QuestionnaireCard.jsx` with responsive 2x2 selectable tiles, top integrated alignment score (35% $\rightarrow$ 85%+), and "Skip & Build" button.
+  - Auto-invalidated stale client-side API key caches in `apiKeyService.js`.
 - **UI Theme Refinements & Inline Alignment Bar (`ChatWorkspace.jsx`)**:
   - Replaced pitch black `#000000` with comfortable dark obsidian slate (`#13151A`, surfaces `#1A1D24` / `#1E222B`).
   - Fixed light theme user bubbles to use soft slate (`bg-slate-100 border-slate-200`) instead of harsh black.
