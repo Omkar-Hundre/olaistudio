@@ -101,35 +101,57 @@ export function extractStructuredQuestionsFromText(text) {
     const line = lines[i];
     const trimmed = line.trim();
 
-    // Match question patterns: "1. ...", "### 1. ...", "### **1. ...**", "**Question 1: ...**"
-    const questionMatch = trimmed.match(/^(?:###\s+)?(?:\*\*)?(?:(?:Question\s+)?\d+[.):]|\?)\s*(?:\*\*)?\s*(.+)/i);
+    // Check for question line:
+    // e.g. "1. **When people...**", "1. To begin...", "### 1. ...", "Question 1: ..."
+    const isQuestionLine = /^(?:###\s+)?(?:\*\*)?(?:(?:\d+\.|\d+\)|\?|Question\s+\d+:?))\s*(?:\*\*)?\s*(.+)/i.test(trimmed);
 
-    if (questionMatch && (trimmed.includes('?') || trimmed.includes(':') || trimmed.includes('**'))) {
+    if (isQuestionLine && (trimmed.includes('?') || trimmed.includes(':') || trimmed.includes('**'))) {
       isInQuestionsBlock = true;
-      if (currentQ) {
+      if (currentQ && currentQ.question) {
         questions.push(currentQ);
       }
+      
+      const cleanQuestionTitle = trimmed
+        .replace(/^(?:###\s+)?(?:\*\*)?(?:(?:\d+\.|\d+\)|\?|Question\s+\d+:?))\s*(?:\*\*)?\s*/i, '')
+        .replace(/^\*+|\*+$/g, '')
+        .trim();
+
       currentQ = {
         id: `q${questions.length + 1}`,
-        question: questionMatch[1].replace(/^\*+|\*+$/g, '').trim(),
+        question: cleanQuestionTitle,
         options: [],
       };
       continue;
     }
 
-    // Match options: "* **A:** ...", "- A) ...", "A. ...", "* 1. ...", "• Option ..."
-    const optionMatch = trimmed.match(/^(?:[-*•]\s+)?(?:\*\*)?(?:[A-DА-Я0-9][.):]|\([A-D0-9]\))\s*(?:\*\*)?\s*(.+)/i);
+    // Check for option line:
+    // e.g. "* **A:** Have one main...", "* **B:** ...", "- A) ...", "A. ...", "* Option 1"
+    const isOptionLine = /^(?:[-*•]\s+)?(?:\*\*)?[A-DА-Я0-9][.:)]\s*(?:\*\*)?\s*(.+)/i.test(trimmed) ||
+                         /^(?:[-*•]\s+)\*\*[A-DА-Я0-9]:\*\*\s*(.+)/i.test(trimmed);
 
-    if (currentQ && optionMatch) {
-      const cleanOption = optionMatch[1].replace(/^\*+|\*+$/g, '').trim();
+    if (currentQ && isOptionLine) {
+      const cleanOption = trimmed
+        .replace(/^(?:[-*•]\s+)?(?:\*\*)?[A-DА-Я0-9][.:)]\s*(?:\*\*)?\s*/i, '')
+        .replace(/^(?:[-*•]\s+)\*\*[A-DА-Я0-9]:\*\*\s*/i, '')
+        .replace(/^\*+|\*+$/g, '')
+        .trim();
+
       if (cleanOption) {
         currentQ.options.push(cleanOption);
       }
       continue;
     }
 
-    // Trailing instructions like "Please select the options..."
-    if (isInQuestionsBlock && (trimmed.toLowerCase().includes('select the options') || trimmed.toLowerCase().includes('choose an option'))) {
+    // Continuation line for a previous option (if indented or wrapping)
+    if (currentQ && currentQ.options.length > 0 && trimmed && !trimmed.startsWith('---') && !trimmed.startsWith('***') && !trimmed.toLowerCase().includes('please choose') && !trimmed.toLowerCase().includes('select')) {
+      // Append to the last option if it's text continuation
+      const lastIdx = currentQ.options.length - 1;
+      currentQ.options[lastIdx] = `${currentQ.options[lastIdx]} ${trimmed}`.trim();
+      continue;
+    }
+
+    // Trailing instructions like "Please choose the option you like best..."
+    if (isInQuestionsBlock && (trimmed.toLowerCase().includes('select') || trimmed.toLowerCase().includes('choose'))) {
       continue;
     }
 
@@ -138,12 +160,12 @@ export function extractStructuredQuestionsFromText(text) {
     }
   }
 
-  if (currentQ) {
+  if (currentQ && currentQ.question) {
     questions.push(currentQ);
   }
 
-  // Ensure every question has 3 fallback options if none were parsed
-  const validQuestions = questions.map((q, idx) => ({
+  // Ensure every question has 3 valid options
+  const validQuestions = questions.filter(q => q.question && q.question.length > 5).map((q, idx) => ({
     id: q.id || `q${idx + 1}`,
     question: q.question,
     options: q.options.length >= 2 ? q.options.slice(0, 3) : [
@@ -154,7 +176,7 @@ export function extractStructuredQuestionsFromText(text) {
   }));
 
   const strippedText = validQuestions.length > 0
-    ? nonQuestionLines.join('\n').trim()
+    ? nonQuestionLines.join('\n').replace(/\n{3,}/g, '\n\n').trim()
     : text.trim();
 
   return { questions: validQuestions, strippedText };
@@ -179,7 +201,7 @@ export function parseSystemCommands(text) {
     commands = safeJsonParse(match[1].trim());
   }
 
-  // 2. If questions were not provided via JSON or if text contains inline questions:
+  // 2. Extract questions from text if inline markdown questions are present:
   const { questions: textQuestions, strippedText } = extractStructuredQuestionsFromText(cleanText);
 
   if (textQuestions.length > 0) {
@@ -187,7 +209,7 @@ export function parseSystemCommands(text) {
     if (!commands) {
       commands = {
         confidence_score: 35,
-        current_branch: 'Project Scope',
+        current_branch: 'Project Scope & Setup',
         questions: textQuestions,
       };
     } else if (!commands.questions || commands.questions.length === 0) {

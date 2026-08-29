@@ -11,10 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Multi-Turn Context & Simplification Flow Fix (`ChatWorkspace.jsx`, `systemCommandParser.js`)**:
-  - Preserved full message content in the API conversation history payload while separating display presentation in UI bubbles via `displayOverride`.
-  - Injected explicit questionnaire context into the simplification request so the model immediately rephrases questions into simplified selectable options.
-  - Enabled continuous live stream rendering during generation and structured card extraction on completion.
-  - Fixed database persistence to write full assistant turns reliably without losing state on refresh.
+  - Upgraded parser to support multi-line continuation options and varied question formats (`1. **...**`, `### ...`).
+  - Added `sessionIdRef` in `ChatWorkspace.jsx` to prevent React state closure staleness and ensure all turns persist reliably across browser refreshes.
+  - Cleaned database records to preserve exactly the beginning prompt and simplified interactive question tiles.
 - **Questionnaire Modal Separation & "Simplify Questions" Action (`QuestionnaireCard.jsx`, `ChatWorkspace.jsx`)**:
   - Automatically stripped inline questionnaire text lists from message bubbles so questions only render inside the interactive modal.
   - Added "Didn't understand? Simplify 💡" button allowing users to request simpler, plain English explanations with 1 click.

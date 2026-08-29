@@ -79,6 +79,7 @@ export default function ChatWorkspace({
   const [showCalloutCard, setShowCalloutCard] = useState(true);
 
   // Mother Agent Workflow & Alignment State
+  const sessionIdRef = useRef(activeSessionId);
   const [sessionId, setSessionId] = useState(activeSessionId);
   const [alignmentScore, setAlignmentScore] = useState(null);
   const [currentBranch, setCurrentBranch] = useState('');
@@ -93,8 +94,9 @@ export default function ChatWorkspace({
 
   // Load existing session data when activeSessionId changes
   useEffect(() => {
+    sessionIdRef.current = activeSessionId;
+    setSessionId(activeSessionId);
     if (activeSessionId) {
-      setSessionId(activeSessionId);
       getWorkflowSession(activeSessionId).then(({ session }) => {
         if (session) {
           setAlignmentScore(session.confidence_score ?? 35);
@@ -124,7 +126,6 @@ export default function ChatWorkspace({
           }
         });
     } else {
-      setSessionId(null);
       setMessages([]);
       setAlignmentScore(null);
       setCurrentBranch('');
@@ -396,7 +397,7 @@ export default function ChatWorkspace({
       content: m.content,
     }));
 
-    let activeSessionId = sessionId;
+    let activeSessionId = sessionIdRef.current;
     if (!activeSessionId) {
       if (alignmentScore === null) setAlignmentScore(35);
       const sessionResult = await createWorkflowSession({
@@ -405,6 +406,7 @@ export default function ChatWorkspace({
       });
       if (sessionResult.session) {
         activeSessionId = sessionResult.session.id;
+        sessionIdRef.current = activeSessionId;
         setSessionId(activeSessionId);
       }
     }
