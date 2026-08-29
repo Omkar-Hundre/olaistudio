@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.9.0] - 2026-08-29
 
 ### Added
+- **Dynamic Platform Models (`public.platform_models`)**:
+  - Migrated hardcoded platform models (e.g. `Olai M1`) to the Supabase database.
+  - Implemented `platformModelService.js` to securely fetch and cache these models dynamically on mount, preventing the need for client deployments when changing default backend models.
+- **AI Proxy Hardening & UI Boundaries**:
+  - Implemented a generous `32,000` character ceiling on the prompt `<textarea>` inside `ChatWorkspace.jsx` to prevent Edge Function memory overload.
+  - Added a smart character counter (`[Length] / 32,000`) that elegantly fades into the bottom right only when surpassing 25,000 characters.
+- **Agent Governance Rules**:
+  - Established `.agents/rules/olai-rules.md` dictating strict agent guidelines on UI regression prevention, changelog maintenance, database syncing, and enforcing a minimal, borderless SaaS aesthetic without technical badges.
 - **Purpose-Driven Workspace Modes (`ChatWorkspace.jsx`)**:
   - Implemented 4 core modes (Deep Research, Product Planning, Design & Architecture, Task Execution) to structure AI interactions.
   - Added an attached full-width top gradient mode bar displaying the active mode context with a clean `✕` dismiss button.

@@ -18,7 +18,7 @@ const FALLBACK_PLATFORM_MODELS = [
     provider: 'gemini',
     rawModel: 'gemini-2.0-flash',
     isPlatform: true,
-    creditCost: 'Default • High-speed platform intelligence',
+    creditCost: 'Default • High-speed',
   },
 ];
 

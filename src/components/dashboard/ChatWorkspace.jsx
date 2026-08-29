@@ -497,14 +497,14 @@ export default function ChatWorkspace({ onCreditDeducted }) {
           />
 
           {/* Main Input Composer Card */}
-          <div className="relative w-full rounded-2xl border border-slate-200/90 dark:border-zinc-800 bg-white dark:bg-[#121316] shadow-sm transition-all overflow-hidden">
+          <div className="relative w-full rounded-2xl border border-slate-200/90 dark:border-zinc-800 bg-white dark:bg-[#121316] shadow-sm transition-all">
             
             {/* Attached Full-Width Mode Bar */}
             {activeMode && (() => {
               const ActiveIcon = MODE_ICONS[activeMode.id] || Search;
               return (
                 <div
-                  className={`w-full px-4 py-2 flex items-center justify-between border-b border-slate-200/60 dark:border-zinc-800 bg-gradient-to-r ${activeMode.barGradient} animate-in slide-in-from-top-2 fade-in duration-300`}
+                  className={`w-full px-4 py-2 flex items-center justify-between border-b border-slate-200/60 dark:border-zinc-800 bg-gradient-to-r ${activeMode.barGradient} rounded-t-[15px] animate-in slide-in-from-top-2 fade-in duration-300`}
                 >
                   <div className="flex items-center gap-2 overflow-hidden">
                     <ActiveIcon className="h-4 w-4 text-slate-700 dark:text-zinc-300 shrink-0" />
