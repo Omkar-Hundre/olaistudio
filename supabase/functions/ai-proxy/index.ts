@@ -119,11 +119,11 @@ Deno.serve(async (req) => {
       }
 
       if (provider === "gemini") {
-        activeApiKey = PLATFORM_DEFAULT_GEMINI_KEY;
+        activeApiKey = PLATFORM_DEFAULT_GEMINI_KEY || customKeys?.gemini_key || "";
       } else if (provider === "openai") {
-        activeApiKey = Deno.env.get("OPENAI_API_KEY") || "";
+        activeApiKey = Deno.env.get("OPENAI_API_KEY") || customKeys?.openai_key || "";
       } else if (provider === "claude") {
-        activeApiKey = Deno.env.get("ANTHROPIC_API_KEY") || "";
+        activeApiKey = Deno.env.get("ANTHROPIC_API_KEY") || customKeys?.claude_key || "";
       }
     }
 
