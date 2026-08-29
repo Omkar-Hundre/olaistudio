@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.9.0] - 2026-08-29
 
 ### Added
+- **Mother Agent "Grill-Me" Interview Engine & Alignment UI (`ChatWorkspace.jsx`)**:
+  - Authored and seeded Mother Agent system prompts across all 4 modes in `public.workspace_modes` (35% baseline score, 1-2 focused questions, hidden `%%%SYSTEM_CMD%%%` block).
+  - Built a minimal, borderless sticky Alignment Progress Bar with spring fill animation from 35% $\rightarrow$ 85%+.
+  - Added "Skip & Build Anyway ⚡" escape hatch button to trigger instant Vision synthesis.
+  - Implemented `systemCommandParser.js` to strip technical metadata from the user chat bubble and auto-update session title and confidence in the database.
 - **Relational DAG Workflow Engine (`public.workflow_sessions`, `workflow_nodes`, `workflow_node_dependencies`)**:
   - Implemented core database architecture for multi-level hierarchical workflows with Mother Agent root node (`depth = 0`) and child worker nodes (`depth >= 1`).
   - Added `merge_output` JSONB column in `workflow_sessions` for final output synthesis.

@@ -22,6 +22,8 @@ import { getWorkspaceModes, DEFAULT_WORKSPACE_MODES } from '../../services/works
 import { getPlatformModels } from '../../services/platformModelService';
 import { parseLocalFile } from '../../utils/fileParser';
 import { uploadFilesSecurely } from '../../services/s3Service';
+import { parseSystemCommands } from '../../utils/systemCommandParser';
+import { createWorkflowSession, updateWorkflowSession } from '../../services/workflowService';
 import {
   Paperclip,
   ArrowUp,
@@ -67,6 +69,12 @@ export default function ChatWorkspace({ onCreditDeducted }) {
   const [errorMessage, setErrorMessage] = useState('');
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [showCalloutCard, setShowCalloutCard] = useState(true);
+
+  // Mother Agent Workflow & Alignment State
+  const [sessionId, setSessionId] = useState(null);
+  const [alignmentScore, setAlignmentScore] = useState(null);
+  const [currentBranch, setCurrentBranch] = useState('');
+  const [sessionTitle, setSessionTitle] = useState('New Session');
 
   // Active Mode State
   const [activeMode, setActiveMode] = useState(null);
@@ -333,18 +341,32 @@ export default function ChatWorkspace({ onCreditDeducted }) {
       content: m.content,
     }));
 
+    let activeSessionId = sessionId;
+    if (!activeSessionId) {
+      if (alignmentScore === null) setAlignmentScore(35);
+      const sessionResult = await createWorkflowSession({
+        title: 'New Conversation',
+        mode: activeMode?.id || 'research',
+      });
+      if (sessionResult.session) {
+        activeSessionId = sessionResult.session.id;
+        setSessionId(activeSessionId);
+      }
+    }
+
     await sendStreamingProxyChatMessage({
       messages: apiPayload,
       provider: selectedModel.provider,
       model: selectedModel.rawModel,
       systemPrompt: activeMode?.systemPrompt || '',
       onChunk: (_delta, accumulatedFullText) => {
+        const { cleanText } = parseSystemCommands(accumulatedFullText);
         setMessages((prev) => {
           const next = [...prev];
           if (next.length > 0) {
             next[next.length - 1] = {
               ...next[next.length - 1],
-              content: accumulatedFullText,
+              content: cleanText,
             };
           }
           return next;
@@ -352,17 +374,37 @@ export default function ChatWorkspace({ onCreditDeducted }) {
       },
       onDone: ({ fullText }) => {
         setIsSending(false);
+        const { cleanText, commands } = parseSystemCommands(fullText);
+
         setMessages((prev) => {
           const next = [...prev];
           if (next.length > 0) {
             next[next.length - 1] = {
               ...next[next.length - 1],
-              content: fullText,
+              content: cleanText,
               isStreaming: false,
             };
           }
           return next;
         });
+
+        if (commands) {
+          if (commands.confidence_score !== undefined) {
+            setAlignmentScore(commands.confidence_score);
+            if (activeSessionId) {
+              updateWorkflowSession(activeSessionId, { confidence_score: commands.confidence_score });
+            }
+          }
+          if (commands.current_branch) {
+            setCurrentBranch(commands.current_branch);
+          }
+          if (commands.suggested_title) {
+            setSessionTitle(commands.suggested_title);
+            if (activeSessionId) {
+              updateWorkflowSession(activeSessionId, { title: commands.suggested_title });
+            }
+          }
+        }
 
         if (onCreditDeducted && selectedModel.isPlatform) {
           onCreditDeducted();
@@ -371,7 +413,6 @@ export default function ChatWorkspace({ onCreditDeducted }) {
       onError: (err) => {
         setIsSending(false);
         setErrorMessage(err);
-        // Remove empty assistant placeholder if failed completely
         setMessages((prev) => {
           const last = prev[prev.length - 1];
           if (last && last.role === 'assistant' && !last.content) {
@@ -409,6 +450,50 @@ export default function ChatWorkspace({ onCreditDeducted }) {
         multiple
         className="hidden"
       />
+
+      {/* =========================================================================
+          MOTHER AGENT ALIGNMENT PROGRESS BAR (Sticky top meter)
+          ========================================================================= */}
+      {!isInitialEmptyState && alignmentScore !== null && (
+        <div className="sticky top-0 z-20 w-full border-b border-slate-200/70 dark:border-zinc-800/80 bg-[#FAFAFA]/90 dark:bg-[#0E0F12]/90 backdrop-blur-md px-4 py-2.5 transition-all">
+          <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
+            {/* Left: Progress meter */}
+            <div className="flex items-center gap-2.5 min-w-[160px]">
+              <span className="text-[11px] font-medium text-slate-700 dark:text-zinc-300 whitespace-nowrap">
+                Alignment {alignmentScore}%
+              </span>
+              <div className="h-1.5 flex-1 max-w-[110px] rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-slate-800 to-slate-950 dark:from-zinc-300 dark:to-white transition-all duration-700 ease-out rounded-full"
+                  style={{ width: `${Math.min(100, Math.max(0, alignmentScore))}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Center: Current Branch Focus */}
+            {currentBranch && (
+              <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-zinc-400 truncate">
+                <span className="text-slate-400 dark:text-zinc-500">Focus:</span>
+                <span className="font-medium text-slate-700 dark:text-zinc-300 truncate">{currentBranch}</span>
+              </div>
+            )}
+
+            {/* Right: Skip & Build Anyway Button */}
+            {alignmentScore < 85 && (
+              <button
+                type="button"
+                onClick={() => handleSendMessage('Proceed immediately: synthesize and finalize the complete Vision and Plan with all available context.')}
+                disabled={isSending}
+                className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-600 dark:text-zinc-400 hover:text-slate-950 dark:hover:text-white transition-colors cursor-pointer disabled:opacity-50"
+                title="Bypass remaining questions and generate Vision immediately"
+              >
+                <Zap className="h-3 w-3 text-amber-500 fill-amber-500/20" />
+                <span>Skip & Build Anyway</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* =========================================================================
           ACTIVE CONVERSATION STREAM (When messages exist)
