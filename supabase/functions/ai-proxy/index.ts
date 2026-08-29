@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
 
     const {
       provider = "gemini",
-      model = "gemini-2.0-flash",
+      model = "gemini-2.5-flash",
       messages = [],
       systemPrompt = "",
       globalContext = "",

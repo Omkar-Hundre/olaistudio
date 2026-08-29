@@ -16,7 +16,7 @@ const FALLBACK_PLATFORM_MODELS = [
     id: 'olai-m1',
     name: 'Olai M1',
     provider: 'gemini',
-    rawModel: 'gemini-2.0-flash',
+    rawModel: 'gemini-2.5-flash',
     isPlatform: true,
     creditCost: 'Default • High-speed',
   },

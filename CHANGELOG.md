@@ -10,9 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.10.0] - 2026-08-29
 
 ### Added
-- **Sub-Second Latency Optimization & Deployed AI Proxy v11 (`ai-proxy/index.ts`, `platform_models`)**:
-  - Identified and resolved 150-second latency bottleneck by migrating default `Olai M1` model in `public.platform_models` to `gemini-2.0-flash` (TTFT < 800ms).
-  - Deployed `ai-proxy` v11 with explicit `isPlatform` model routing, ensuring system model `Olai M1` consistently uses platform credits even when custom keys are stored in Settings.
+- **Gemini 2.5 Flash Model Migration & Deployed AI Proxy v13 (`ai-proxy/index.ts`, `platform_models`, `platformModelService.js`)**:
+  - Updated default `Olai M1` backend model from `gemini-2.0-flash` to `gemini-2.5-flash` in `public.platform_models` and deployed `ai-proxy` v13.
+- **Pasted Text Linebreak & Structure Preservation (`ChatWorkspace.jsx`)**:
+  - Implemented custom `handlePaste` interceptor on prompt textarea to preserve raw text formatting, multi-line structures, and exact newlines when pasting prompts from external sources without paragraph collapsing.
 - **Verbatim Prompt, Memory & Payload Inspection CLI (`scripts/inspect-payloads.js`)**:
   - Implemented `npm run inspect:payloads` providing 100% transparent terminal visibility into verbatim prompts, exact character counts, token estimates, 3-level memory diffs, and parser extraction mapping with zero API cost.
 - **In-App Real-Time Dev Payload Inspector Drawer (`DevPayloadInspector.jsx`, `ChatWorkspace.jsx`)**:

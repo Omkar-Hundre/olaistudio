@@ -341,6 +341,32 @@ export default function ChatWorkspace({
     setPrompt(e.target.value);
   };
 
+  // Handle Paste event — Preserves exact copied structure, line breaks, and indentation without formatting corruption
+  const handlePaste = (e) => {
+    const text = e.clipboardData?.getData('text/plain');
+    if (typeof text === 'string') {
+      e.preventDefault();
+      const textarea = textareaRef.current;
+      if (!textarea) {
+        setPrompt((prev) => prev + text);
+        return;
+      }
+      const start = textarea.selectionStart ?? prompt.length;
+      const end = textarea.selectionEnd ?? prompt.length;
+      const newPrompt = prompt.substring(0, start) + text + prompt.substring(end);
+      setPrompt(newPrompt);
+
+      // Restore exact cursor position after pasted text
+      requestAnimationFrame(() => {
+        if (textareaRef.current) {
+          textareaRef.current.selectionStart = textareaRef.current.selectionEnd = start + text.length;
+          textareaRef.current.style.height = 'auto';
+          textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
+        }
+      });
+    }
+  };
+
   // Handle file attachment
   const handleFileSelect = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -985,6 +1011,7 @@ export default function ChatWorkspace({
                     rows={1}
                     value={prompt}
                     onChange={handlePromptChange}
+                    onPaste={handlePaste}
                     onKeyDown={handleKeyDown}
                     maxLength={32000}
                     className="w-full resize-none border-0 bg-transparent py-2 px-0 text-xs sm:text-[13.5px] leading-5 text-slate-900 dark:text-zinc-100 focus:outline-none max-h-[180px] overflow-y-auto z-10 relative custom-scrollbar"

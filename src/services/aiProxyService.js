@@ -28,7 +28,7 @@ import { optimizeMessagesForContextWindow, calculateTokenBudget } from '../utils
 export async function sendProxyChatMessage({
   messages,
   provider = 'gemini',
-  model = 'gemini-2.0-flash',
+  model = 'gemini-2.5-flash',
   systemPrompt = '',
   globalContext = '',
   parentContext = '',
@@ -114,7 +114,7 @@ export async function sendProxyChatMessage({
 export async function sendStreamingProxyChatMessage({
   messages,
   provider = 'gemini',
-  model = 'gemini-2.0-flash',
+  model = 'gemini-2.5-flash',
   systemPrompt = '',
   globalContext = '',
   parentContext = '',
