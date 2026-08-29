@@ -109,9 +109,10 @@ export default function ChatWorkspace({
         .from('workflow_nodes')
         .select('conversation_history, hidden_commands')
         .eq('session_id', activeSessionId)
-        .is('parent_id', null)
-        .maybeSingle()
-        .then(({ data: rootNode }) => {
+        .order('depth', { ascending: true })
+        .limit(1)
+        .then(({ data: nodes }) => {
+          const rootNode = nodes?.[0];
           if (rootNode?.conversation_history && Array.isArray(rootNode.conversation_history)) {
             setMessages(rootNode.conversation_history);
           }
@@ -460,12 +461,14 @@ export default function ChatWorkspace({
             targetBranch = commands.current_branch;
             setCurrentBranch(commands.current_branch);
           }
-          if (commands.suggested_title) {
-            setSessionTitle(commands.suggested_title);
-            if (activeSessionId) {
-              updateWorkflowSession(activeSessionId, { title: commands.suggested_title });
-            }
+          
+          const fallbackTitle = (rawText || '').split('\n')[0].slice(0, 42).trim() || 'Project Chat';
+          const finalTitle = commands?.suggested_title || (sessionTitle && sessionTitle !== 'New Session' && sessionTitle !== 'New Conversation' ? sessionTitle : fallbackTitle);
+          setSessionTitle(finalTitle);
+          if (activeSessionId) {
+            updateWorkflowSession(activeSessionId, { title: finalTitle });
           }
+
           if (commands.questions && Array.isArray(commands.questions) && commands.questions.length > 0) {
             targetQuestions = commands.questions;
             setActiveQuestions(commands.questions);
@@ -488,6 +491,12 @@ export default function ChatWorkspace({
               });
             }
           }
+        } else {
+          const fallbackTitle = (rawText || '').split('\n')[0].slice(0, 42).trim() || 'Project Chat';
+          setSessionTitle(fallbackTitle);
+          if (activeSessionId) {
+            updateWorkflowSession(activeSessionId, { title: fallbackTitle });
+          }
         }
 
         // Persist root node turn and conversation history to Supabase
@@ -502,7 +511,7 @@ export default function ChatWorkspace({
             ctaLabel: targetCta,
           });
 
-          if (!sessionId && onSessionCreated) {
+          if (onSessionCreated) {
             onSessionCreated(activeSessionId);
           }
         }

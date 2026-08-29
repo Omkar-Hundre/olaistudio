@@ -105,7 +105,7 @@ export async function saveRootSessionState({
   if (!sessionId) return { success: false, error: 'Session ID required' };
   try {
     // 1. Update session row
-    await supabase
+    const { error: sessionErr } = await supabase
       .from('workflow_sessions')
       .update({
         confidence_score: confidenceScore,
@@ -115,18 +115,21 @@ export async function saveRootSessionState({
       })
       .eq('id', sessionId);
 
-    // 2. Find or create root node (depth = 0, parent_id is null)
-    const { data: existingNodes } = await supabase
+    if (sessionErr) console.warn('[Workflow] Session update warning:', sessionErr);
+
+    // 2. Check for existing root node
+    const { data: existingNodes, error: fetchErr } = await supabase
       .from('workflow_nodes')
       .select('id')
       .eq('session_id', sessionId)
-      .is('parent_id', null)
       .limit(1);
+
+    if (fetchErr) console.warn('[Workflow] Node fetch warning:', fetchErr);
 
     const rootNodeId = existingNodes?.[0]?.id;
 
     if (rootNodeId) {
-      await supabase
+      const { error: updateErr } = await supabase
         .from('workflow_nodes')
         .update({
           conversation_history: messages,
@@ -139,8 +142,10 @@ export async function saveRootSessionState({
           updated_at: new Date().toISOString(),
         })
         .eq('id', rootNodeId);
+
+      if (updateErr) console.warn('[Workflow] Node update warning:', updateErr);
     } else {
-      await supabase
+      const { error: insertErr } = await supabase
         .from('workflow_nodes')
         .insert({
           session_id: sessionId,
@@ -158,6 +163,8 @@ export async function saveRootSessionState({
             cta_label: ctaLabel,
           },
         });
+
+      if (insertErr) console.warn('[Workflow] Node insert warning:', insertErr);
     }
 
     return { success: true, error: null };

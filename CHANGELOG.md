@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.9.0] - 2026-08-29
 
 ### Added
+- **Resilient Chat Switching & Automatic Titling (`ChatWorkspace.jsx`, `systemCommandParser.js`)**:
+  - Fixed chat switching from sidebar by querying root node turns ordered by depth from `workflow_nodes`.
+  - Implemented automatic fallback titling so conversations are always named from the first turn even if LLM JSON is wrapped in code fences.
+  - Eradicated all client-side stale API key caching in `apiKeyService.js` to ensure 100% live synchronization from Supabase.
 - **Database Session Persistence & Sidebar History Integration (`AppDashboard.jsx`, `workflowService.js`)**:
   - Connected `public.workflow_sessions` and `workflow_nodes` root turns to persist conversation history, questions, and alignment progress across page refreshes.
   - Connected `Sidebar.jsx` recent chats list with live selection and instant `+ New Chat` reset.
