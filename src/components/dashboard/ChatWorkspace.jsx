@@ -20,6 +20,8 @@ import { getUserApiKeys } from '../../services/apiKeyService';
 import * as modelHealthService from '../../services/modelHealthService';
 import { getWorkspaceModes, DEFAULT_WORKSPACE_MODES } from '../../services/workspaceModeService';
 import { getPlatformModels } from '../../services/platformModelService';
+import { parseLocalFile } from '../../utils/fileParser';
+import { uploadFilesSecurely } from '../../services/s3Service';
 import {
   Paperclip,
   ArrowUp,
@@ -252,17 +254,17 @@ export default function ChatWorkspace({ onCreditDeducted }) {
   };
 
   // Handle file attachment
-  const handleFileSelect = (e) => {
+  const handleFileSelect = async (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    const newAttachments = files.map((file) => ({
-      name: file.name,
-      size: (file.size / 1024).toFixed(1) + ' KB',
-      type: file.type.startsWith('image/') ? 'image' : 'file',
-    }));
+    try {
+      const parsedFiles = await Promise.all(files.map(f => parseLocalFile(f)));
+      setAttachments((prev) => [...prev, ...parsedFiles]);
+    } catch (err) {
+      setErrorMessage(err.message);
+    }
 
-    setAttachments((prev) => [...prev, ...newAttachments]);
     e.target.value = '';
   };
 
@@ -273,21 +275,40 @@ export default function ChatWorkspace({ onCreditDeducted }) {
   // Handle Send Message
   const handleSendMessage = async (textToSend = null) => {
     const rawText = (textToSend || prompt).trim();
-    if (!rawText || isSending) return;
+    if ((!rawText && attachments.length === 0) || isSending) return;
 
     setErrorMessage('');
-    
-    // Prefix context if in a specialized mode
-    const finalContent = activeMode
-      ? `[Mode: ${activeMode.name}]\n${rawText}`
-      : rawText;
+    setIsSending(true);
+
+    let finalContent = activeMode ? `[Mode: ${activeMode.name}]\n${rawText}` : rawText;
+    let uploadedS3Refs = [];
+
+    // JIT S3 Uploading and Context Injection
+    if (attachments.length > 0) {
+      try {
+        const rawFiles = attachments.map(a => a.file);
+        uploadedS3Refs = await uploadFilesSecurely(rawFiles);
+        
+        // Append parsed text content to final prompt
+        attachments.forEach(att => {
+          if (att.textContent) {
+            finalContent += `\n\n--- File Content: ${att.name} ---\n${att.textContent}`;
+          }
+        });
+      } catch (err) {
+        setErrorMessage(`Upload failed: ${err.message}`);
+        setIsSending(false);
+        return;
+      }
+    }
 
     const userMessage = {
       role: 'user',
       content: finalContent,
       displayContent: rawText,
       modeName: activeMode?.name,
-      attachments: [...attachments],
+      attachments: attachments.map(a => ({ name: a.name, type: a.type })),
+      s3Refs: uploadedS3Refs,
       timestamp: new Date().toISOString(),
     };
 
@@ -298,8 +319,6 @@ export default function ChatWorkspace({ onCreditDeducted }) {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
-
-    setIsSending(true);
 
     const apiPayload = updatedHistory.map((m) => ({
       role: m.role,

@@ -11,6 +11,7 @@
     "db:sync": "node scripts/sync-schema.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1121.0",
     "@supabase/supabase-js": "^2.112.3",
     "gsap": "^3.15.0",
     "lucide-react": "^0.453.0",

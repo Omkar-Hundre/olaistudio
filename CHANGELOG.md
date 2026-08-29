@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.9.0] - 2026-08-29
 
 ### Added
+- **Secure AWS S3 Integration via Edge Function**:
+  - Built a secure Supabase Edge Function (`s3-upload-url`) to generate pre-signed upload URLs, fully decoupling AWS secrets from the frontend bundle.
+  - Implemented `s3Service.js` to execute Just-In-Time (JIT) uploads to the `olai` bucket exactly when the user clicks "Send", rather than blindly uploading upon attachment.
+- **Client-Side File Parsing (`fileParser.js`)**:
+  - Implemented local extraction of text from code and markdown files via `FileReader`.
+  - Injects parsed file text directly into the AI context for immediate reasoning.
 - **Dynamic Platform Models (`public.platform_models`)**:
   - Migrated hardcoded platform models (e.g. `Olai M1`) to the Supabase database.
   - Implemented `platformModelService.js` to securely fetch and cache these models dynamically on mount, preventing the need for client deployments when changing default backend models.

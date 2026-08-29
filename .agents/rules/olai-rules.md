@@ -1,3 +1,7 @@
+---
+trigger: always_on
+---
+
 # Olai Project Rules & Constraints
 
 Follow these strict constraints when working on the Olai project:
@@ -19,3 +23,10 @@ Follow these strict constraints when working on the Olai project:
 - **NO technical pills and badges** on the main UI unless absolutely required for debugging (and even then, remove them before final delivery).
 - **Clean and minimal look:** NO extra unrequired borders. NO unrequired background colors. NO emojis in the UI. 
 - Stick to the professional, sleek SaaS aesthetic: grayscale tokens (`slate`/`zinc`), subtle `shadow-sm`, and native Lucide icons.
+
+## 6. No odd colors than the brand colors being used now.
+- **Do not used random black adn dark colors in white theme and vice versa to create incosistency. Maintain and follow the theme based colors**
+
+## 7. Custom credentials provided.
+- ** When I provide any credentials for any platform please test those credentials first if those are working and if those are working then include it into the application.**
+- ** Store them securely using superbase edge function And please don't put load over superbase if it can be done using just one function then use that one function itself instead of writing hundreds of API calls or hundreds of edge function calls for different different functions and Apis Keep the system lightweight and as fast as possible and optimized.**
