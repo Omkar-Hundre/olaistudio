@@ -18,6 +18,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { sendProxyChatMessage } from '../../services/aiProxyService';
 import { getUserApiKeys } from '../../services/apiKeyService';
 import * as modelHealthService from '../../services/modelHealthService';
+import { getWorkspaceModes, DEFAULT_WORKSPACE_MODES } from '../../services/workspaceModeService';
 import {
   Paperclip,
   ArrowUp,
@@ -40,88 +41,12 @@ import {
   SendHorizontal
 } from 'lucide-react';
 
-const WORKSPACE_MODES = [
-  {
-    id: 'research',
-    name: 'Deep Research',
-    badge: 'Research Mode',
-    barGradient: 'from-blue-500/15 via-indigo-500/10 to-transparent dark:from-blue-600/20 dark:via-indigo-600/15 dark:to-transparent',
-    flowGradient: 'from-blue-500 via-indigo-500 via-sky-400 to-purple-500',
-    icon: Search,
-    title: 'Deep Research & Analysis',
-    subtitle: 'Synthesize complex topics, verify facts & uncover reliable insights',
-    placeholders: [
-      'What topic or industry landscape would you like to research?',
-      'Synthesize key findings and compare perspectives on a topic...',
-      'Analyze trends, data patterns, and market opportunities...',
-    ],
-    suggestions: [
-      'Research emerging industry trends and summarize key findings',
-      'Fact-check information and compare credible perspectives on a topic',
-      'Analyze customer feedback and highlight common patterns or pain points',
-    ],
-  },
-  {
-    id: 'product',
-    name: 'Product Planning',
-    badge: 'Product Planning Mode',
-    barGradient: 'from-emerald-500/15 via-teal-500/10 to-transparent dark:from-emerald-600/20 dark:via-teal-600/15 dark:to-transparent',
-    flowGradient: 'from-emerald-500 via-teal-500 via-cyan-400 to-green-500',
-    icon: Compass,
-    title: 'Product & Feature Planning',
-    subtitle: 'Draft product specs, user journeys & milestone release roadmaps',
-    placeholders: [
-      'Describe the product idea or feature you want to plan...',
-      'Create a phased product roadmap with key deliverables...',
-      'Map out user personas and outline their primary goals...',
-    ],
-    suggestions: [
-      'Create a product roadmap with structured phases and delivery milestones',
-      'Draft user personas and outline their primary journeys and goals',
-      'Define success metrics, KPIs, and measurable release criteria',
-    ],
-  },
-  {
-    id: 'architecture',
-    name: 'Design & Architecture',
-    badge: 'Design & Architecture Mode',
-    barGradient: 'from-purple-500/15 via-pink-500/10 to-transparent dark:from-purple-600/20 dark:via-pink-600/15 dark:to-transparent',
-    flowGradient: 'from-purple-500 via-pink-500 via-rose-400 to-indigo-500',
-    icon: Layers,
-    title: 'Design & Architecture',
-    subtitle: 'Structure complex systems, information flows & entity models',
-    placeholders: [
-      'What system or information flow are you structuring?',
-      'Outline an end-to-end process from input to final output...',
-      'Design a structured entity relationship model...',
-    ],
-    suggestions: [
-      'Outline a complete system flow from user input to final output',
-      'Design a structured entity relationship model with clear connections',
-      'Map out service components and communication between layers',
-    ],
-  },
-  {
-    id: 'execution',
-    name: 'Task Execution',
-    badge: 'Task Execution Mode',
-    barGradient: 'from-amber-500/15 via-orange-500/10 to-transparent dark:from-amber-600/20 dark:via-orange-600/15 dark:to-transparent',
-    flowGradient: 'from-amber-500 via-orange-500 via-yellow-400 to-rose-500',
-    icon: Cpu,
-    title: 'Task Execution',
-    subtitle: 'Break down complex goals into actionable, structured stages',
-    placeholders: [
-      'Describe the project or objective you want to execute...',
-      'Break down a large project into actionable daily steps...',
-      'Create an execution checklist with priorities and milestones...',
-    ],
-    suggestions: [
-      'Break down a complex project into actionable, structured daily steps',
-      'Create an execution checklist with priorities and dependencies',
-      'Organize complex multi-stage objectives into focused task blocks',
-    ],
-  },
-];
+const MODE_ICONS = {
+  research: Search,
+  product: Compass,
+  architecture: Layers,
+  execution: Cpu,
+};
 
 const DEFAULT_PLACEHOLDERS = [
   'Ask Olai M1 anything or choose a mode below...',
@@ -132,6 +57,7 @@ const DEFAULT_PLACEHOLDERS = [
 
 export default function ChatWorkspace({ onCreditDeducted }) {
   const { user } = useAuth();
+  const [workspaceModes, setWorkspaceModes] = useState(DEFAULT_WORKSPACE_MODES);
   const [messages, setMessages] = useState([]);
   const [prompt, setPrompt] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -141,6 +67,19 @@ export default function ChatWorkspace({ onCreditDeducted }) {
 
   // Active Mode State
   const [activeMode, setActiveMode] = useState(null);
+
+  // Load and sync modes from Supabase
+  useEffect(() => {
+    let isMounted = true;
+    getWorkspaceModes().then((modes) => {
+      if (isMounted && modes) {
+        setWorkspaceModes(modes);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Rotating Placeholder State
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
@@ -371,6 +310,7 @@ export default function ChatWorkspace({ onCreditDeducted }) {
       messages: apiPayload,
       provider: selectedModel.provider,
       model: selectedModel.rawModel,
+      systemPrompt: activeMode?.systemPrompt || '',
     });
 
     setIsSending(false);
@@ -560,28 +500,31 @@ export default function ChatWorkspace({ onCreditDeducted }) {
           <div className="relative w-full rounded-2xl border border-slate-200/90 dark:border-zinc-800 bg-white dark:bg-[#121316] shadow-sm transition-all overflow-hidden">
             
             {/* Attached Full-Width Mode Bar */}
-            {activeMode && (
-              <div
-                className={`w-full px-4 py-2 flex items-center justify-between border-b border-slate-200/60 dark:border-zinc-800 bg-gradient-to-r ${activeMode.barGradient} animate-in slide-in-from-top-2 fade-in duration-300`}
-              >
-                <div className="flex items-center gap-2 overflow-hidden">
-                  <activeMode.icon className="h-4 w-4 text-slate-700 dark:text-zinc-300 shrink-0" />
-                  <span className="text-xs font-semibold text-slate-900 dark:text-zinc-100 truncate">
-                    {activeMode.badge}
-                  </span>
-                </div>
-
-                {/* Dismiss Mode Button */}
-                <button
-                  type="button"
-                  onClick={() => setActiveMode(null)}
-                  className="flex h-5 w-5 items-center justify-center rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer shrink-0"
-                  title="Exit mode"
+            {activeMode && (() => {
+              const ActiveIcon = MODE_ICONS[activeMode.id] || Search;
+              return (
+                <div
+                  className={`w-full px-4 py-2 flex items-center justify-between border-b border-slate-200/60 dark:border-zinc-800 bg-gradient-to-r ${activeMode.barGradient} animate-in slide-in-from-top-2 fade-in duration-300`}
                 >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            )}
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    <ActiveIcon className="h-4 w-4 text-slate-700 dark:text-zinc-300 shrink-0" />
+                    <span className="text-xs font-semibold text-slate-900 dark:text-zinc-100 truncate">
+                      {activeMode.badge}
+                    </span>
+                  </div>
+
+                  {/* Dismiss Mode Button */}
+                  <button
+                    type="button"
+                    onClick={() => setActiveMode(null)}
+                    className="flex h-5 w-5 items-center justify-center rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer shrink-0"
+                    title="Exit mode"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              );
+            })()}
 
             {/* Input Composer Body */}
             <div className="p-3 sm:p-3.5">
@@ -768,8 +711,8 @@ export default function ChatWorkspace({ onCreditDeducted }) {
             ) : (
               /* 4 Core Purpose-Driven Mode Cards */
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full animate-in fade-in duration-300">
-                {WORKSPACE_MODES.map((mode) => {
-                  const Icon = mode.icon;
+                {workspaceModes.map((mode) => {
+                  const Icon = MODE_ICONS[mode.id] || Search;
                   return (
                     <button
                       key={mode.id}
@@ -783,10 +726,10 @@ export default function ChatWorkspace({ onCreditDeducted }) {
                       <Icon className="h-4 w-4 text-slate-500 dark:text-zinc-400 group-hover:text-slate-900 dark:group-hover:text-zinc-100 transition-colors mt-0.5 shrink-0" />
                       <div className="flex flex-col overflow-hidden">
                         <span className="text-xs font-semibold text-slate-800 dark:text-zinc-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors truncate">
-                          {mode.title}
+                          {mode.title || mode.name}
                         </span>
                         <span className="text-[11px] text-slate-400 dark:text-zinc-500 truncate mt-0.5">
-                          {mode.subtitle}
+                          {mode.description || mode.subtitle}
                         </span>
                       </div>
                     </button>

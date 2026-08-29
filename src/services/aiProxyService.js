@@ -17,15 +17,21 @@ import { supabase } from '../lib/supabase';
  * @param {Array<{ role: string, content: string }>} params.messages
  * @param {string} [params.provider='gemini'] - 'gemini' | 'openai' | 'claude'
  * @param {string} [params.model='gemini-2.0-flash']
+ * @param {string} [params.systemPrompt] - Optional system prompt instruction
  * @returns {Promise<{ reply: string, creditsRemaining?: number, usedUserKey?: boolean, error?: string }>}
  */
-export async function sendProxyChatMessage({ messages, provider = 'gemini', model = 'gemini-2.0-flash' }) {
+export async function sendProxyChatMessage({ messages, provider = 'gemini', model = 'gemini-2.0-flash', systemPrompt = '' }) {
   try {
+    const finalMessages = systemPrompt
+      ? [{ role: 'system', content: systemPrompt }, ...messages]
+      : messages;
+
     const { data, error } = await supabase.functions.invoke('ai-proxy', {
       body: {
         provider,
         model,
-        messages,
+        messages: finalMessages,
+        systemPrompt,
       },
     });
 
