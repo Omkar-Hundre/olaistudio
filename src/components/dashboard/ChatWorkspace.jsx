@@ -121,7 +121,7 @@ export default function ChatWorkspace({ onCreditDeducted }) {
     provider: 'gemini',
     rawModel: 'gemini-2.0-flash',
     isPlatform: true,
-    creditCost: '1 credit/query',
+    creditCost: 'Default • High-speed platform intelligence',
   });
 
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
@@ -132,7 +132,7 @@ export default function ChatWorkspace({ onCreditDeducted }) {
       provider: 'gemini',
       rawModel: 'gemini-2.0-flash',
       isPlatform: true,
-      creditCost: '1 credit/query',
+      creditCost: 'Default • High-speed platform intelligence',
     },
   ]);
 
@@ -184,7 +184,7 @@ export default function ChatWorkspace({ onCreditDeducted }) {
           provider: 'gemini',
           rawModel: 'gemini-2.0-flash',
           isPlatform: true,
-          creditCost: '1 credit/query',
+          creditCost: 'Default • High-speed platform intelligence',
         },
       ];
 
@@ -202,7 +202,7 @@ export default function ChatWorkspace({ onCreditDeducted }) {
               provider: 'gemini',
               rawModel: modelName,
               isPlatform: false,
-              creditCost: '',
+              creditCost: 'Custom Key • Google AI Ultra-low latency',
             });
           });
         }
@@ -218,7 +218,7 @@ export default function ChatWorkspace({ onCreditDeducted }) {
               provider: 'openai',
               rawModel: modelName,
               isPlatform: false,
-              creditCost: '',
+              creditCost: 'Custom Key • OpenAI Core Reasoning',
             });
           });
         }
@@ -234,7 +234,7 @@ export default function ChatWorkspace({ onCreditDeducted }) {
               provider: 'claude',
               rawModel: modelName,
               isPlatform: false,
-              creditCost: '',
+              creditCost: 'Custom Key • Anthropic Frontier Accuracy',
             });
           });
         }
@@ -252,13 +252,21 @@ export default function ChatWorkspace({ onCreditDeducted }) {
     };
   }, [user?.id]);
 
-  // Auto-grow textarea
+  // Auto-grow textarea height dynamically based on value changes
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    // Reset height to calculate scrollHeight correctly
+    textarea.style.height = 'auto';
+    // Calculate new height, capping it at 180px with a sleek scrollbar
+    const nextHeight = textarea.scrollHeight;
+    textarea.style.height = `${Math.min(nextHeight, 180)}px`;
+  }, [prompt]);
+
+  // Handle manual changes to prompt text
   const handlePromptChange = (e) => {
     setPrompt(e.target.value);
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
-    }
   };
 
   // Handle file attachment
@@ -482,8 +490,8 @@ export default function ChatWorkspace({ onCreditDeducted }) {
         <div className="relative w-full rounded-2xl border border-slate-200/90 dark:border-zinc-800 bg-white dark:bg-[#121316] shadow-xs p-3 sm:p-3.5 transition-all">
           
           {/* Top Line: Pen/Sparkle + Textarea */}
-          <div className="flex items-start gap-2">
-            <Sparkles className="h-4 w-4 text-slate-400 dark:text-zinc-500 mt-1 shrink-0" />
+          <div className="flex items-start gap-2.5 pt-0.5">
+            <Sparkles className="h-4 w-4 text-slate-400 dark:text-zinc-500 mt-[3px] shrink-0 self-start" />
             
             <div className="relative flex-1 min-h-[42px]">
               <textarea
@@ -492,12 +500,12 @@ export default function ChatWorkspace({ onCreditDeducted }) {
                 value={prompt}
                 onChange={handlePromptChange}
                 onKeyDown={handleKeyDown}
-                className="w-full resize-none border-0 bg-transparent py-0 px-0 text-xs sm:text-[13.5px] text-slate-900 dark:text-zinc-100 focus:outline-none max-h-36 overflow-y-auto leading-relaxed z-10 relative"
+                className="w-full resize-none border-0 bg-transparent py-[1px] px-0 text-xs sm:text-[13.5px] text-slate-900 dark:text-zinc-100 focus:outline-none max-h-[180px] overflow-y-auto leading-relaxed z-10 relative custom-scrollbar"
               />
 
               {!prompt && (
                 <div
-                  className={`pointer-events-none absolute inset-0 flex items-center text-xs sm:text-[13.5px] text-slate-400 dark:text-zinc-500 transition-opacity duration-300 select-none ${
+                  className={`pointer-events-none absolute top-[1px] left-0 text-xs sm:text-[13.5px] text-slate-400 dark:text-zinc-500 transition-opacity duration-300 select-none ${
                     isPlaceholderFading ? 'opacity-0' : 'opacity-100'
                   }`}
                 >

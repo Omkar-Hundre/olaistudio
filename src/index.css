@@ -113,3 +113,20 @@ body {
 .animate-fluid-pulse {
   animation: fluidPulse 4s ease-in-out infinite;
 }
+
+/* Sleek custom scrollbars for text inputs */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #E2E8F0;
+  border-radius: 9999px;
+}
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #27272A;
+}
+
