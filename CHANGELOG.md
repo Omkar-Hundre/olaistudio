@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.9.0] - 2026-08-29
+
+### Added
+- **Purpose-Driven Workspace Modes (`ChatWorkspace.jsx`)**:
+  - Implemented 4 core modes (Deep Research, Product Planning, Design & Architecture, Task Execution) to structure AI interactions.
+  - Added an attached full-width top gradient mode bar displaying the active mode context with a clean `✕` dismiss button.
+  - Added dynamic context-aware placeholder animations depending on the selected mode.
+- **Dynamic Mode-Specific Prompt Suggestions**:
+  - Attached a sleek borderless vertical stack below the chat composer containing 3 highly targeted, accessible task suggestions for the active mode.
+- **Supabase System Prompts Database (`public.workspace_modes`)**:
+  - Created and seeded a `workspace_modes` table in Supabase protected by Row Level Security (RLS).
+  - Drafted 4 comprehensive, persona-driven system prompts detailing instructions on output format, verification, comparison matrices, PRD structuring, and atomic task execution.
+- **Dynamic AI Proxy Dispatch (`workspaceModeService.js` & `aiProxyService.js`)**:
+  - Modes and system prompts are now dynamically fetched and cached from Supabase on mount.
+  - When an active mode is selected, its respective rigorous `systemPrompt` is injected seamlessly into the backend AI proxy.
+- **Liquid Gradient Flow Border Animation**:
+  - Wrapped the main chat composer in a flowing, continuous random liquid gradient border (`@keyframes liquidFlow`).
+
+### Changed
+- **Clean Aesthetic Overhauls**:
+  - Removed clunky borders, subtitle texts, and background icon pills from the mode cards and suggestion components to achieve a minimalist, human-designed aesthetic.
+  - Pixel-perfect vertical baseline alignment of the Sparkle logo, text input field, and floating placeholders.
+
 ## [2.8.0] - 2026-08-29
 
 ### Changed
