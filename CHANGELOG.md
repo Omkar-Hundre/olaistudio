@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.9.0] - 2026-08-29
 
 ### Added
+- **Dynamic URL Routing (`/c/:sessionId`) (`AppDashboard.jsx`)**:
+  - Implemented dynamic route support (`/c/:sessionId` and `?c=:sessionId`) so every conversation has a unique, bookmarkable URL.
+  - Refreshing the browser preserves the exact active conversation rather than resetting to a blank new chat.
+  - Integrated browser history navigation (`window.history.pushState` and `popstate`) for seamless Back/Forward button support across chats.
 - **Multi-Turn Context & Simplification Flow Fix (`ChatWorkspace.jsx`, `systemCommandParser.js`)**:
   - Upgraded parser to support multi-line continuation options and varied question formats (`1. **...**`, `### ...`).
   - Added `sessionIdRef` in `ChatWorkspace.jsx` to prevent React state closure staleness and ensure all turns persist reliably across browser refreshes.

@@ -3,6 +3,7 @@
  * Component: AppDashboard (Frontier / Arena Styled Workspace)
  * ==============================================================================
  * Authenticated workspace screen matching the reference layout:
+ * - Dynamic URL routing (/c/:sessionId) with instant URL updates and refresh preservation
  * - Professional Sidebar with + New Chat, Leaderboard, Search, Workspace, and Credits
  * - Live database session persistence & sidebar history sync
  * - Top header with Mode selector, announcement banner, Private badge, Theme toggle & Profile
@@ -24,6 +25,19 @@ import {
   X
 } from 'lucide-react';
 
+/**
+ * Extracts session ID from current URL path (/c/:id) or query (?c=:id)
+ * @returns {string | null}
+ */
+function getSessionIdFromUrl() {
+  if (typeof window === 'undefined') return null;
+  const pathMatch = window.location.pathname.match(/\/c\/([a-zA-Z0-9_-]+)/);
+  if (pathMatch) return pathMatch[1];
+  const searchParam = new URLSearchParams(window.location.search).get('c');
+  if (searchParam) return searchParam;
+  return null;
+}
+
 export default function AppDashboard() {
   const { user, profile } = useAuth();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -33,8 +47,8 @@ export default function AppDashboard() {
   const [creditRefreshTrigger, setCreditRefreshTrigger] = useState(0);
   const [showAnnouncementBanner, setShowAnnouncementBanner] = useState(true);
 
-  // Workflow Session State
-  const [activeSessionId, setActiveSessionId] = useState(null);
+  // Workflow Session State (Initialized from URL for direct refresh support)
+  const [activeSessionId, setActiveSessionId] = useState(getSessionIdFromUrl);
   const [sessions, setSessions] = useState([]);
 
   const displayName = profile?.name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
@@ -52,6 +66,17 @@ export default function AppDashboard() {
     loadSessions();
   }, [user?.id, creditRefreshTrigger]);
 
+  // Sync with browser Back/Forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const urlId = getSessionIdFromUrl();
+      setActiveSessionId(urlId);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const handleOpenSettings = (tab = 'profile') => {
     setSettingsDefaultTab(tab);
     setIsSettingsOpen(true);
@@ -60,11 +85,17 @@ export default function AppDashboard() {
   const handleNewChat = () => {
     setActiveSessionId(null);
     setActiveTab('overview');
+    if (typeof window !== 'undefined') {
+      window.history.pushState(null, '', '/');
+    }
   };
 
   const handleSelectSession = (sessionId) => {
     setActiveSessionId(sessionId);
     setActiveTab('overview');
+    if (typeof window !== 'undefined' && sessionId) {
+      window.history.pushState(null, '', `/c/${sessionId}`);
+    }
   };
 
   return (
@@ -174,6 +205,9 @@ export default function AppDashboard() {
             activeSessionId={activeSessionId}
             onSessionCreated={(newId) => {
               setActiveSessionId(newId);
+              if (typeof window !== 'undefined' && newId) {
+                window.history.pushState(null, '', `/c/${newId}`);
+              }
               loadSessions();
             }}
             onCreditDeducted={() => {
