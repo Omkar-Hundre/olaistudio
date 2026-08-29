@@ -33,3 +33,8 @@ dist/
 # Vercel Deployment Files
 .vercel
 /vercel
+
+# Archives & Backups
+*.zip
+*.tar.gz
+*.bak
