@@ -421,7 +421,8 @@ export default function ChatWorkspace({
           if (next.length > 0) {
             next[next.length - 1] = {
               ...next[next.length - 1],
-              content: cleanText,
+              content: accumulatedFullText,
+              displayContent: cleanText,
             };
           }
           return next;
@@ -430,15 +431,21 @@ export default function ChatWorkspace({
       onDone: ({ fullText }) => {
         setIsSending(false);
         const { cleanText, commands } = parseSystemCommands(fullText);
+        const fullContent = fullText.replace(/%%%SYSTEM_CMD%%%[\s\S]*$/, '').trim();
+
+        const finalAssistantMessage = {
+          role: 'assistant',
+          content: fullContent,
+          displayContent: cleanText,
+          modelName: selectedModel.name,
+          timestamp: new Date().toISOString(),
+          isStreaming: false,
+        };
 
         setMessages((prev) => {
           const next = [...prev];
           if (next.length > 0) {
-            next[next.length - 1] = {
-              ...next[next.length - 1],
-              content: cleanText,
-              isStreaming: false,
-            };
+            next[next.length - 1] = finalAssistantMessage;
           }
           return next;
         });
@@ -503,7 +510,7 @@ export default function ChatWorkspace({
         if (activeSessionId) {
           saveRootSessionState({
             sessionId: activeSessionId,
-            messages: [...updatedHistory, { role: 'assistant', content: cleanText, isStreaming: false, timestamp: new Date().toISOString() }],
+            messages: [...updatedHistory, finalAssistantMessage],
             confidenceScore: targetScore,
             currentBranch: targetBranch,
             visionContent: targetVision,
@@ -707,7 +714,14 @@ export default function ChatWorkspace({
                 alignmentScore={alignmentScore ?? 35}
                 currentBranch={currentBranch}
                 onSkip={() => handleSendMessage('Proceed immediately: finalize and generate the complete plan with all current context.')}
-                onSimplify={() => handleSendMessage("I did not understand those options. Please explain the choices in simpler, plain English and provide simpler beginner-friendly options.")}
+                onSimplify={() => {
+                  const currentQuestionsText = activeQuestions
+                    .map((q, i) => `${i + 1}. ${q.question}\nOptions: ${(q.options || []).join(', ')}`)
+                    .join('\n\n');
+                  handleSendMessage(
+                    `I did not understand the previous options:\n\n${currentQuestionsText}\n\nPlease ask these exact questions again using simpler, plain English terms, and provide beginner-friendly, non-technical choices.`
+                  );
+                }}
                 onSubmit={(clarificationsPayload) => {
                   setActiveQuestions([]);
                   handleSendMessage(clarificationsPayload);
