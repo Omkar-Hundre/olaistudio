@@ -5,10 +5,10 @@
  * Features:
  * - "Experience the frontier" elegant typography headline
  * - Pixel-perfect baseline & vertical alignment for Sparkles icon and animated placeholders
+ * - Liquid animated flowing gradient border wrapping the entire chatbar
+ * - Attached Full-Width Mode Bar with smooth sliding transition and one-click dismiss (✕)
  * - Auto-expanding prompt textarea with sleek custom scrollbar
- * - Core Purpose-Driven Modes (Deep Research, Product Planning, Architecture Design, Task Execution)
- * - Attached gradient Mode Bar on the chat composer with one-click dismiss (✕)
- * - Dynamic mode-specific suggestions & rotating placeholders
+ * - 3 General Accessible Suggestions per mode in a clean vertical stack with line dividers
  * - Responsive model selection and instant proxy execution
  * ==============================================================================
  */
@@ -45,90 +45,86 @@ const WORKSPACE_MODES = [
     id: 'research',
     name: 'Deep Research',
     badge: 'Research Mode',
-    gradient: 'from-blue-500/15 via-indigo-500/15 to-purple-500/15 border-indigo-500/30 text-indigo-700 dark:text-indigo-300',
+    barGradient: 'from-blue-500/15 via-indigo-500/10 to-transparent dark:from-blue-600/20 dark:via-indigo-600/15 dark:to-transparent',
+    flowGradient: 'from-blue-500 via-indigo-500 via-sky-400 to-purple-500',
     icon: Search,
     title: 'Deep Research & Analysis',
-    subtitle: 'Synthesize complex topics, verify sources & uncover technical insights',
+    subtitle: 'Synthesize complex topics, verify facts & uncover reliable insights',
     placeholders: [
-      'What technical topic or market landscape would you like to research?',
-      'Compare modern state management approaches in React 19...',
-      'Analyze trade-offs between PostgreSQL vector indexing and Pinecone...',
-      'Synthesize the latest advancements in LLM reasoning engines...',
+      'What topic or industry landscape would you like to research?',
+      'Synthesize key findings and compare perspectives on a topic...',
+      'Analyze trends, data patterns, and market opportunities...',
     ],
     suggestions: [
-      'Compare PostgreSQL vs DynamoDB for high-throughput SaaS',
-      'Analyze latest WebAssembly runtime performance benchmarks',
-      'Deep-dive into Supabase RLS security and indexing best practices',
-      'Synthesize state of generative AI coding assistants in 2026',
+      'Research emerging industry trends and summarize key findings',
+      'Fact-check information and compare credible perspectives on a topic',
+      'Analyze customer feedback and highlight common patterns or pain points',
     ],
   },
   {
     id: 'product',
     name: 'Product Planning',
     badge: 'Product Planning Mode',
-    gradient: 'from-emerald-500/15 via-teal-500/15 to-cyan-500/15 border-teal-500/30 text-teal-700 dark:text-teal-300',
+    barGradient: 'from-emerald-500/15 via-teal-500/10 to-transparent dark:from-emerald-600/20 dark:via-teal-600/15 dark:to-transparent',
+    flowGradient: 'from-emerald-500 via-teal-500 via-cyan-400 to-green-500',
     icon: Compass,
     title: 'Product & Feature Planning',
-    subtitle: 'Draft PRDs, user flows, acceptance criteria & milestone roadmaps',
+    subtitle: 'Draft product specs, user journeys & milestone release roadmaps',
     placeholders: [
       'Describe the product idea or feature you want to plan...',
-      'Draft a comprehensive PRD with user stories and edge cases...',
-      'Define milestone timeline for our MVP release...',
-      'Map out complete user onboarding flow and conversion funnel...',
+      'Create a phased product roadmap with key deliverables...',
+      'Map out user personas and outline their primary goals...',
     ],
     suggestions: [
-      'Draft comprehensive PRD with acceptance criteria & edge cases',
-      'Create user onboarding journey & milestone timeline roadmap',
-      'Break down full MVP requirements into sprint-ready epics',
-      'Define KPI metrics & event analytics schema for user retention',
+      'Create a product roadmap with structured phases and delivery milestones',
+      'Draft user personas and outline their primary journeys and goals',
+      'Define success metrics, KPIs, and measurable release criteria',
     ],
   },
   {
     id: 'architecture',
-    name: 'System Architecture',
-    badge: 'Architecture Design Mode',
-    gradient: 'from-purple-500/15 via-pink-500/15 to-rose-500/15 border-purple-500/30 text-purple-700 dark:text-purple-300',
+    name: 'Design & Architecture',
+    badge: 'Design & Architecture Mode',
+    barGradient: 'from-purple-500/15 via-pink-500/10 to-transparent dark:from-purple-600/20 dark:via-pink-600/15 dark:to-transparent',
+    flowGradient: 'from-purple-500 via-pink-500 via-rose-400 to-indigo-500',
     icon: Layers,
-    title: 'System & Architecture Design',
-    subtitle: 'Architect full-stack database schemas, auth workflows & APIs',
+    title: 'Design & Architecture',
+    subtitle: 'Structure complex systems, information flows & entity models',
     placeholders: [
-      'What system or database structure are you designing?',
-      'Design a multi-tenant PostgreSQL schema with RLS...',
-      'Architect an event-driven background worker pipeline...',
-      'Model secure OAuth2 + session token auth flow...',
+      'What system or information flow are you structuring?',
+      'Outline an end-to-end process from input to final output...',
+      'Design a structured entity relationship model...',
     ],
     suggestions: [
-      'Design multi-tenant PostgreSQL schema with RLS and foreign keys',
-      'Architect real-time WebSocket event dispatch pipeline',
-      'Model secure OAuth2 + session token auth flow with revocation',
-      'Design resilient distributed caching strategy with Redis',
+      'Outline a complete system flow from user input to final output',
+      'Design a structured entity relationship model with clear connections',
+      'Map out service components and communication between layers',
     ],
   },
   {
     id: 'execution',
     name: 'Task Execution',
-    badge: 'Complex Task Execution Mode',
-    gradient: 'from-amber-500/15 via-orange-500/15 to-red-500/15 border-amber-500/30 text-amber-700 dark:text-amber-300',
+    badge: 'Task Execution Mode',
+    barGradient: 'from-amber-500/15 via-orange-500/10 to-transparent dark:from-amber-600/20 dark:via-orange-600/15 dark:to-transparent',
+    flowGradient: 'from-amber-500 via-orange-500 via-yellow-400 to-rose-500',
     icon: Cpu,
-    title: 'Autonomous Task Execution',
-    subtitle: 'Break down complex multi-step coding tasks and implement end-to-end',
+    title: 'Task Execution',
+    subtitle: 'Break down complex goals into actionable, structured stages',
     placeholders: [
-      'Describe the multi-step feature or implementation task...',
-      'Execute end-to-end refactor of auth and session management...',
-      'Generate end-to-end integration test suite with mocking...',
-      'Implement webhook ingestion with idempotent retry logic...',
+      'Describe the project or objective you want to execute...',
+      'Break down a large project into actionable daily steps...',
+      'Create an execution checklist with priorities and milestones...',
     ],
     suggestions: [
-      'Plan and generate full-stack CRUD feature with validation',
-      'Step-by-step migration from REST endpoints to GraphQL schema',
-      'Implement robust rate-limiting and audit logging middleware',
-      'Create complete end-to-end automated testing workflow',
+      'Break down a complex project into actionable, structured daily steps',
+      'Create an execution checklist with priorities and dependencies',
+      'Organize complex multi-stage objectives into focused task blocks',
     ],
   },
 ];
 
 const DEFAULT_PLACEHOLDERS = [
-  'Ask Olai M1 anything or pick a mode below...',
+  'Ask Olai M1 anything or choose a mode below...',
   'Research a breakthrough idea or technical concept...',
   'Plan your next product architecture and database...',
   'Break down a complex engineering task into stages...',
@@ -550,196 +546,223 @@ export default function ChatWorkspace({ onCreditDeducted }) {
           </div>
         )}
 
-        {/* Main Input Composer Card */}
-        <div className="relative w-full rounded-2xl border border-slate-200/90 dark:border-zinc-800 bg-white dark:bg-[#121316] shadow-xs p-3 sm:p-3.5 transition-all">
+        {/* Outer Liquid Flowing Border Wrapper */}
+        <div className="relative w-full group">
           
-          {/* Active Mode Bar Attached on Top */}
-          {activeMode && (
-            <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-zinc-800/80 animate-in slide-in-from-top-1 fade-in duration-200">
-              <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11.5px] font-medium bg-gradient-to-r ${activeMode.gradient} border shadow-2xs`}>
-                <activeMode.icon className="h-3.5 w-3.5" />
-                <span>{activeMode.badge}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActiveMode(null)}
-                className="flex h-5 w-5 items-center justify-center rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-                title="Deselect mode"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          )}
+          {/* Animated Liquid Flow Gradient Border */}
+          <div
+            className={`absolute -inset-[2px] rounded-2xl bg-gradient-to-r ${
+              activeMode ? activeMode.flowGradient : 'from-blue-500 via-indigo-500 via-sky-400 to-purple-500'
+            } opacity-50 dark:opacity-40 blur-xs animate-liquid-flow transition-all duration-500 pointer-events-none`}
+          />
 
-          {/* Top Line: Sparkles + Textarea + Aligned Placeholder */}
-          <div className="flex items-start gap-2.5 pt-0.5">
-            <Sparkles className="h-4 w-4 text-slate-400 dark:text-zinc-500 mt-[2px] shrink-0 self-start" />
+          {/* Main Input Composer Card */}
+          <div className="relative w-full rounded-2xl border border-slate-200/90 dark:border-zinc-800 bg-white dark:bg-[#121316] shadow-sm transition-all overflow-hidden">
             
-            <div className="relative flex-1 min-h-[40px]">
-              <textarea
-                ref={textareaRef}
-                rows={1}
-                value={prompt}
-                onChange={handlePromptChange}
-                onKeyDown={handleKeyDown}
-                className="w-full resize-none border-0 bg-transparent py-0 px-0 text-xs sm:text-[13.5px] leading-5 text-slate-900 dark:text-zinc-100 focus:outline-none max-h-[180px] overflow-y-auto z-10 relative custom-scrollbar"
-              />
-
-              {!prompt && (
-                <div
-                  className={`pointer-events-none absolute top-0 left-0 text-xs sm:text-[13.5px] leading-5 text-slate-400 dark:text-zinc-500 transition-opacity duration-300 select-none truncate max-w-full ${
-                    isPlaceholderFading ? 'opacity-0' : 'opacity-100'
-                  }`}
-                >
-                  {currentPlaceholders[placeholderIndex]}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Attachment Preview Chips */}
-          {attachments.length > 0 && (
-            <div className="flex flex-wrap gap-2 my-2 px-1">
-              {attachments.map((file, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/80 px-2.5 py-1 text-xs text-slate-700 dark:text-zinc-300 shadow-2xs"
-                >
-                  <FileText className="h-3.5 w-3.5 text-slate-500" />
-                  <span className="truncate max-w-[140px] font-medium">{file.name}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeAttachment(idx)}
-                    className="text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 ml-1 cursor-pointer"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Bottom Toolbar: Left Pills (App files, Olai M1, ...) and Right Buttons */}
-          <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-slate-100 dark:border-zinc-800/70">
-            
-            {/* Left Controls */}
-            <div className="flex items-center gap-1.5">
-              
-              {/* App files pill */}
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-1.5 rounded-full border border-slate-200/80 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/60 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+            {/* Attached Full-Width Mode Bar */}
+            {activeMode && (
+              <div
+                className={`w-full px-4 py-2.5 flex items-center justify-between border-b border-slate-200/60 dark:border-zinc-800 bg-gradient-to-r ${activeMode.barGradient} animate-in slide-in-from-top-2 fade-in duration-300`}
               >
-                <Paperclip className="h-3.5 w-3.5 text-slate-400" />
-                <span className="text-[11.5px]">App files</span>
-              </button>
+                <div className="flex items-center gap-2 overflow-hidden">
+                  <div className="flex h-5 w-5 items-center justify-center rounded-md bg-slate-900/10 dark:bg-white/10 text-slate-800 dark:text-zinc-200 shrink-0">
+                    <activeMode.icon className="h-3.5 w-3.5" />
+                  </div>
+                  <div className="flex flex-col overflow-hidden">
+                    <span className="text-xs font-semibold text-slate-900 dark:text-zinc-100 truncate leading-tight">
+                      {activeMode.badge}
+                    </span>
+                    <span className="text-[10.5px] text-slate-500 dark:text-zinc-400 truncate leading-tight mt-0.5">
+                      {activeMode.subtitle}
+                    </span>
+                  </div>
+                </div>
 
-              {/* Model selection pill (Olai M1) */}
-              <div className="relative" ref={modelDropdownRef}>
+                {/* Dismiss Mode Button */}
                 <button
                   type="button"
-                  onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
-                  className="flex items-center gap-1.5 rounded-full border border-slate-200/80 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/60 px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                  onClick={() => setActiveMode(null)}
+                  className="flex h-5 w-5 items-center justify-center rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer shrink-0 ml-2"
+                  title="Exit mode"
                 >
-                  <Zap className="h-3 w-3 text-slate-500" />
-                  <span className="text-[11.5px] font-medium">{selectedModel.name}</span>
-                  <ChevronDown className="h-3 w-3 text-slate-400" />
+                  <X className="h-3.5 w-3.5" />
                 </button>
+              </div>
+            )}
 
-                {/* Dropdown Menu */}
-                {isModelDropdownOpen && (
-                  <div className="absolute bottom-full left-0 mb-2 z-50 w-72 max-h-72 overflow-y-auto rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#121316] p-1.5 shadow-xl animate-in zoom-in-95">
-                    <div className="px-2 py-1 text-[10.5px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
-                      Select Model ({availableModels.length})
+            {/* Input Composer Body */}
+            <div className="p-3 sm:p-3.5">
+              
+              {/* Sparkles + Textarea Row (Pixel-Perfect Vertically Aligned) */}
+              <div className="flex items-center gap-2.5">
+                <Sparkles className="h-4 w-4 text-slate-400 dark:text-zinc-500 shrink-0" />
+                
+                <div className="relative flex-1 flex items-center min-h-[38px]">
+                  <textarea
+                    ref={textareaRef}
+                    rows={1}
+                    value={prompt}
+                    onChange={handlePromptChange}
+                    onKeyDown={handleKeyDown}
+                    className="w-full resize-none border-0 bg-transparent py-2 px-0 text-xs sm:text-[13.5px] leading-5 text-slate-900 dark:text-zinc-100 focus:outline-none max-h-[180px] overflow-y-auto z-10 relative custom-scrollbar"
+                  />
+
+                  {!prompt && (
+                    <div
+                      className={`pointer-events-none absolute inset-y-0 left-0 flex items-center text-xs sm:text-[13.5px] leading-5 text-slate-400 dark:text-zinc-500 transition-opacity duration-300 select-none truncate max-w-full ${
+                        isPlaceholderFading ? 'opacity-0' : 'opacity-100'
+                      }`}
+                    >
+                      {currentPlaceholders[placeholderIndex]}
                     </div>
-                    <div className="space-y-0.5">
-                      {availableModels.map((m) => {
-                        const isSelected = selectedModel.id === m.id;
-                        return (
-                          <button
-                            key={m.id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedModel(m);
-                              setIsModelDropdownOpen(false);
-                            }}
-                            className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-medium transition-colors cursor-pointer ${
-                              isSelected
-                                ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-zinc-100'
-                                : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/60 hover:text-slate-900 dark:hover:text-zinc-200'
-                            }`}
-                          >
-                            <div className="flex flex-col text-left overflow-hidden">
-                              <span className="truncate font-medium">{m.name}</span>
-                              {m.creditCost && (
-                                <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-mono">
-                                  {m.creditCost}
-                                </span>
-                              )}
-                            </div>
-                            {isSelected && <Check className="h-3.5 w-3.5 shrink-0 text-slate-900 dark:text-zinc-100 ml-2" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
-              {/* ... Options Pill */}
-              <button
-                type="button"
-                className="flex items-center justify-center h-6.5 w-6.5 rounded-full border border-slate-200/80 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/60 text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
-                title="More settings"
-              >
-                <MoreHorizontal className="h-3.5 w-3.5" />
-              </button>
-            </div>
+              {/* Attachment Preview Chips */}
+              {attachments.length > 0 && (
+                <div className="flex flex-wrap gap-2 my-2 px-1">
+                  {attachments.map((file, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/80 px-2.5 py-1 text-xs text-slate-700 dark:text-zinc-300 shadow-2xs"
+                    >
+                      <FileText className="h-3.5 w-3.5 text-slate-500" />
+                      <span className="truncate max-w-[140px] font-medium">{file.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeAttachment(idx)}
+                        className="text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 ml-1 cursor-pointer"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-            {/* Right Controls */}
-            <div className="flex items-center gap-1.5">
-              {/* Send Button */}
-              <button
-                type="button"
-                onClick={() => handleSendMessage()}
-                disabled={!prompt.trim() || isSending}
-                className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 dark:bg-zinc-100 text-white dark:text-slate-900 shadow-xs hover:bg-slate-800 dark:hover:bg-zinc-200 active:scale-95 transition-all disabled:opacity-35 disabled:scale-100 cursor-pointer"
-                title="Send"
-              >
-                {isSending ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <SendHorizontal className="h-3.5 w-3.5" />
-                )}
-              </button>
+              {/* Bottom Toolbar: Left Pills (App files, Olai M1, ...) and Right Buttons */}
+              <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-slate-100 dark:border-zinc-800/70">
+                
+                {/* Left Controls */}
+                <div className="flex items-center gap-1.5">
+                  
+                  {/* App files pill */}
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-1.5 rounded-full border border-slate-200/80 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/60 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                  >
+                    <Paperclip className="h-3.5 w-3.5 text-slate-400" />
+                    <span className="text-[11.5px]">App files</span>
+                  </button>
+
+                  {/* Model selection pill (Olai M1) */}
+                  <div className="relative" ref={modelDropdownRef}>
+                    <button
+                      type="button"
+                      onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
+                      className="flex items-center gap-1.5 rounded-full border border-slate-200/80 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/60 px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                    >
+                      <Zap className="h-3 w-3 text-slate-500" />
+                      <span className="text-[11.5px] font-medium">{selectedModel.name}</span>
+                      <ChevronDown className="h-3 w-3 text-slate-400" />
+                    </button>
+
+                    {/* Dropdown Menu */}
+                    {isModelDropdownOpen && (
+                      <div className="absolute bottom-full left-0 mb-2 z-50 w-72 max-h-72 overflow-y-auto rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#121316] p-1.5 shadow-xl animate-in zoom-in-95">
+                        <div className="px-2 py-1 text-[10.5px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+                          Select Model ({availableModels.length})
+                        </div>
+                        <div className="space-y-0.5">
+                          {availableModels.map((m) => {
+                            const isSelected = selectedModel.id === m.id;
+                            return (
+                              <button
+                                key={m.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedModel(m);
+                                  setIsModelDropdownOpen(false);
+                                }}
+                                className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-medium transition-colors cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-zinc-100'
+                                    : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/60 hover:text-slate-900 dark:hover:text-zinc-200'
+                                }`}
+                              >
+                                <div className="flex flex-col text-left overflow-hidden">
+                                  <span className="truncate font-medium">{m.name}</span>
+                                  {m.creditCost && (
+                                    <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-mono">
+                                      {m.creditCost}
+                                    </span>
+                                  )}
+                                </div>
+                                {isSelected && <Check className="h-3.5 w-3.5 shrink-0 text-slate-900 dark:text-zinc-100 ml-2" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ... Options Pill */}
+                  <button
+                    type="button"
+                    className="flex items-center justify-center h-6.5 w-6.5 rounded-full border border-slate-200/80 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/60 text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                    title="More settings"
+                  >
+                    <MoreHorizontal className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
+                {/* Right Controls */}
+                <div className="flex items-center gap-1.5">
+                  {/* Send Button */}
+                  <button
+                    type="button"
+                    onClick={() => handleSendMessage()}
+                    disabled={!prompt.trim() || isSending}
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 dark:bg-zinc-100 text-white dark:text-slate-900 shadow-xs hover:bg-slate-800 dark:hover:bg-zinc-200 active:scale-95 transition-all disabled:opacity-35 disabled:scale-100 cursor-pointer"
+                    title="Send"
+                  >
+                    {isSending ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <SendHorizontal className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
             </div>
           </div>
         </div>
 
         {/* =====================================================================
-            BELOW CARDS / MODE-SPECIFIC PROMPT SUGGESTIONS
+            BELOW CARDS / 3 GENERAL SUGGESTIONS (VERTICAL STACK WITH LINE SEPARATOR)
             ===================================================================== */}
         {isInitialEmptyState && (
           <div className="w-full mt-4">
             {activeMode ? (
-              /* Mode Specific Subtitle Task Suggestions */
-              <div className="animate-in fade-in slide-in-from-bottom-2 duration-200 space-y-2">
-                <div className="flex items-center justify-between px-1">
-                  <span className="text-[11px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
-                    {activeMode.name} Suggestions
-                  </span>
+              /* 3 General Suggestions in a Vertical Stack with only Line Separators */
+              <div className="w-full rounded-2xl bg-white/70 dark:bg-[#121316]/70 backdrop-blur-md border border-slate-200/70 dark:border-zinc-800/80 p-1.5 animate-in fade-in slide-in-from-bottom-2 duration-300 shadow-2xs">
+                <div className="px-3 py-1.5 flex items-center justify-between text-[11px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+                  <span>{activeMode.name} Suggestions</span>
                   <button
                     type="button"
                     onClick={() => setActiveMode(null)}
-                    className="text-[11px] text-slate-500 hover:text-slate-800 dark:hover:text-zinc-200 cursor-pointer"
+                    className="text-slate-500 hover:text-slate-800 dark:hover:text-zinc-200 font-normal capitalize cursor-pointer text-xs"
                   >
                     View all modes
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {activeMode.suggestions.map((suggestion, idx) => (
+                <div className="divide-y divide-slate-100 dark:divide-zinc-800/70">
+                  {activeMode.suggestions.slice(0, 3).map((suggestion, idx) => (
                     <button
                       key={idx}
                       type="button"
@@ -747,14 +770,17 @@ export default function ChatWorkspace({ onCreditDeducted }) {
                         setPrompt(suggestion);
                         textareaRef.current?.focus();
                       }}
-                      className="flex items-start gap-2.5 rounded-xl border border-slate-200/90 dark:border-zinc-800 bg-white/90 dark:bg-[#121316]/90 p-2.5 text-left transition-all hover:border-slate-300 dark:hover:border-zinc-700 hover:shadow-2xs active:scale-[0.99] cursor-pointer group"
+                      className="w-full flex items-center justify-between px-3 py-2.5 text-left text-xs text-slate-700 dark:text-zinc-300 hover:bg-slate-100/70 dark:hover:bg-zinc-800/60 rounded-lg transition-colors cursor-pointer group"
                     >
-                      <span className="text-slate-400 dark:text-zinc-500 text-xs mt-0.5 group-hover:text-slate-800 dark:group-hover:text-zinc-200 transition-colors">
-                        ✦
-                      </span>
-                      <span className="text-xs text-slate-700 dark:text-zinc-300 leading-snug group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
-                        {suggestion}
-                      </span>
+                      <div className="flex items-center gap-2.5 overflow-hidden pr-2">
+                        <span className="text-slate-400 dark:text-zinc-500 text-xs shrink-0 group-hover:text-slate-800 dark:group-hover:text-zinc-100 transition-colors">
+                          ✦
+                        </span>
+                        <span className="truncate group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
+                          {suggestion}
+                        </span>
+                      </div>
+                      <ArrowUp className="h-3.5 w-3.5 opacity-0 -rotate-45 group-hover:opacity-100 text-slate-400 dark:text-zinc-500 transition-all shrink-0" />
                     </button>
                   ))}
                 </div>
