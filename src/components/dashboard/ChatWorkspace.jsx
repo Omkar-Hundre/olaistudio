@@ -19,6 +19,7 @@ import { sendProxyChatMessage } from '../../services/aiProxyService';
 import { getUserApiKeys } from '../../services/apiKeyService';
 import * as modelHealthService from '../../services/modelHealthService';
 import { getWorkspaceModes, DEFAULT_WORKSPACE_MODES } from '../../services/workspaceModeService';
+import { getPlatformModels } from '../../services/platformModelService';
 import {
   Paperclip,
   ArrowUp,
@@ -171,16 +172,9 @@ export default function ChatWorkspace({ onCreditDeducted }) {
     let isMounted = true;
 
     async function loadAllVerifiedModels() {
-      const list = [
-        {
-          id: 'olai-m1',
-          name: 'Olai M1',
-          provider: 'gemini',
-          rawModel: 'gemini-2.0-flash',
-          isPlatform: true,
-          creditCost: 'Default • High-speed platform intelligence',
-        },
-      ];
+      // 1. Fetch dynamic platform models (e.g. Olai M1)
+      const platformModels = await getPlatformModels();
+      const list = [...platformModels];
 
       const { keys } = await getUserApiKeys(user.id);
       if (!keys) return;
@@ -236,6 +230,12 @@ export default function ChatWorkspace({ onCreditDeducted }) {
 
       if (isMounted) {
         setAvailableModels(list);
+        
+        // Ensure the default selected model is updated with dynamic DB values
+        setSelectedModel((prev) => {
+          const updatedPlatformModel = list.find(m => m.id === prev.id);
+          return updatedPlatformModel || prev;
+        });
       }
     }
 
@@ -540,6 +540,7 @@ export default function ChatWorkspace({ onCreditDeducted }) {
                     value={prompt}
                     onChange={handlePromptChange}
                     onKeyDown={handleKeyDown}
+                    maxLength={32000}
                     className="w-full resize-none border-0 bg-transparent py-2 px-0 text-xs sm:text-[13.5px] leading-5 text-slate-900 dark:text-zinc-100 focus:outline-none max-h-[180px] overflow-y-auto z-10 relative custom-scrollbar"
                   />
 
@@ -554,6 +555,15 @@ export default function ChatWorkspace({ onCreditDeducted }) {
                   )}
                 </div>
               </div>
+
+              {/* Character Limit Warning (Appears when nearing the 32k limit) */}
+              {prompt.length > 25000 && (
+                <div className="flex justify-end mt-1 px-1">
+                  <span className={`text-[10px] font-mono ${prompt.length >= 32000 ? 'text-red-500 font-bold' : 'text-amber-500'}`}>
+                    {prompt.length.toLocaleString()} / 32,000
+                  </span>
+                </div>
+              )}
 
               {/* Attachment Preview Chips */}
               {attachments.length > 0 && (
