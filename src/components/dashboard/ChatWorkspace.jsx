@@ -336,7 +336,7 @@ export default function ChatWorkspace({
   };
 
   // Handle Send Message
-  const handleSendMessage = async (textToSend = null) => {
+  const handleSendMessage = async (textToSend = null, displayOverride = null) => {
     const rawText = (textToSend || prompt).trim();
     if ((!rawText && attachments.length === 0) || isSending) return;
 
@@ -368,7 +368,7 @@ export default function ChatWorkspace({
     const userMessage = {
       role: 'user',
       content: finalContent,
-      displayContent: rawText,
+      displayContent: displayOverride || rawText,
       modeName: activeMode?.name,
       attachments: attachments.map(a => ({ name: a.name, type: a.type })),
       s3Refs: uploadedS3Refs,
@@ -415,14 +415,14 @@ export default function ChatWorkspace({
       model: selectedModel.rawModel,
       systemPrompt: activeMode?.systemPrompt || '',
       onChunk: (_delta, accumulatedFullText) => {
-        const { cleanText } = parseSystemCommands(accumulatedFullText);
+        const cleanStreamingText = accumulatedFullText.replace(/%%%SYSTEM_CMD%%%[\s\S]*$/, '').trim();
         setMessages((prev) => {
           const next = [...prev];
           if (next.length > 0) {
             next[next.length - 1] = {
               ...next[next.length - 1],
               content: accumulatedFullText,
-              displayContent: cleanText,
+              displayContent: cleanStreamingText,
             };
           }
           return next;
@@ -719,7 +719,8 @@ export default function ChatWorkspace({
                     .map((q, i) => `${i + 1}. ${q.question}\nOptions: ${(q.options || []).join(', ')}`)
                     .join('\n\n');
                   handleSendMessage(
-                    `I did not understand the previous options:\n\n${currentQuestionsText}\n\nPlease ask these exact questions again using simpler, plain English terms, and provide beginner-friendly, non-technical choices.`
+                    `I did not understand the previous options:\n\n${currentQuestionsText}\n\nPlease ask these exact questions again using simpler, plain English terms, and provide beginner-friendly, non-technical choices.`,
+                    "I didn't understand the previous options. Please explain them in simpler terms."
                   );
                 }}
                 onSubmit={(clarificationsPayload) => {

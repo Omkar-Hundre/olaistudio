@@ -3,10 +3,9 @@
  * System Command & Structured Questionnaire Parser
  * ==============================================================================
  * Industrial-grade parser that:
- * 1. Safely strips %%%SYSTEM_CMD%%% blocks and questions from chat bubble text
- * 2. Parses structured questions and options from both %%%SYSTEM_CMD%%% JSON and inline Markdown text
- * 3. Handles unescaped characters, markdown fences, and bullet formatting (* **A:** ...)
- * 4. Ensures clean separation between conversational greeting and the interactive modal
+ * 1. Safely parses %%%SYSTEM_CMD%%% JSON blocks and inline Markdown questions
+ * 2. Formats questions and options into interactive tiles
+ * 3. Strips technical JSON and question lists from completed assistant turns
  * ==============================================================================
  */
 
@@ -85,7 +84,7 @@ function safeJsonParse(raw) {
 }
 
 /**
- * Extracts structured questions and options from plain markdown text
+ * Extracts structured questions and options from markdown text
  * @param {string} text 
  * @returns {{ questions: Array<{ id: string, question: string, options: string[] }>, strippedText: string }}
  */
@@ -102,10 +101,10 @@ export function extractStructuredQuestionsFromText(text) {
     const line = lines[i];
     const trimmed = line.trim();
 
-    // Check for question header (e.g., "1. To begin...", "### 1. ...", "Question 1: ...")
-    const questionMatch = trimmed.match(/^(?:(?:\d+\.|\?|Q\d+:?|###\s+\d+\.)\s+)(.+)/i);
+    // Match question patterns: "1. ...", "### 1. ...", "### **1. ...**", "**Question 1: ...**"
+    const questionMatch = trimmed.match(/^(?:###\s+)?(?:\*\*)?(?:(?:Question\s+)?\d+[.):]|\?)\s*(?:\*\*)?\s*(.+)/i);
 
-    if (questionMatch && (trimmed.includes('?') || trimmed.includes(':'))) {
+    if (questionMatch && (trimmed.includes('?') || trimmed.includes(':') || trimmed.includes('**'))) {
       isInQuestionsBlock = true;
       if (currentQ) {
         questions.push(currentQ);
@@ -118,7 +117,7 @@ export function extractStructuredQuestionsFromText(text) {
       continue;
     }
 
-    // Check for options: "* **A:** ...", "- A) ...", "A. ...", "* Option ..."
+    // Match options: "* **A:** ...", "- A) ...", "A. ...", "* 1. ...", "• Option ..."
     const optionMatch = trimmed.match(/^(?:[-*•]\s+)?(?:\*\*)?(?:[A-DА-Я0-9][.):]|\([A-D0-9]\))\s*(?:\*\*)?\s*(.+)/i);
 
     if (currentQ && optionMatch) {
@@ -130,7 +129,7 @@ export function extractStructuredQuestionsFromText(text) {
     }
 
     // Trailing instructions like "Please select the options..."
-    if (isInQuestionsBlock && trimmed.toLowerCase().includes('select the options')) {
+    if (isInQuestionsBlock && (trimmed.toLowerCase().includes('select the options') || trimmed.toLowerCase().includes('choose an option'))) {
       continue;
     }
 
@@ -188,7 +187,7 @@ export function parseSystemCommands(text) {
     if (!commands) {
       commands = {
         confidence_score: 35,
-        current_branch: 'Project Architecture & Scope',
+        current_branch: 'Project Scope',
         questions: textQuestions,
       };
     } else if (!commands.questions || commands.questions.length === 0) {
