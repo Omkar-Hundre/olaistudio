@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.9.0] - 2026-08-29
 
 ### Added
+- **Relational DAG Workflow Engine (`public.workflow_sessions`, `workflow_nodes`, `workflow_node_dependencies`)**:
+  - Implemented core database architecture for multi-level hierarchical workflows with Mother Agent root node (`depth = 0`) and child worker nodes (`depth >= 1`).
+  - Added `merge_output` JSONB column in `workflow_sessions` for final output synthesis.
+  - Implemented Level 3 permanent memory storage (`conversation_history` JSONB) and per-node credit tracking (`credits_consumed`).
+  - Added strict Row Level Security (RLS) policies enforcing multi-tenant isolation through session ownership.
+  - Built `workflowService.js` client wrapper with real-time Supabase subscription integration.
 - **Real-Time Typewriter Response Streaming (`ai-proxy` v6 & `ChatWorkspace.jsx`)**:
   - Implemented Server-Sent Events (SSE) streaming support across Google Gemini (`streamGenerateContent`) and OpenAI in the `ai-proxy` Edge Function.
   - Added `sendStreamingProxyChatMessage` in `aiProxyService.js` and connected live typewriter rendering with animated cursor in `ChatWorkspace.jsx`.
