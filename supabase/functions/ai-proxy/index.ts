@@ -210,29 +210,33 @@ Deno.serve(async (req) => {
           };
         }
 
-        let activeModel = model;
-        let geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:streamGenerateContent?alt=sse&key=${activeApiKey}`;
-        let upstreamRes = await fetch(geminiUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestBody),
-        });
+        const candidateModels = Array.from(new Set([model, "gemini-2.5-flash", "gemini-3.6-flash", "gemini-flash-latest"]));
+        let upstreamRes: Response | null = null;
+        let lastErrText = "";
 
-        // Resilient quota failover: if primary model is 429'd or 404, fallback to gemini-flash-latest
-        if (!upstreamRes.ok && upstreamRes.status === 429 && activeModel !== "gemini-flash-latest") {
-          activeModel = "gemini-flash-latest";
-          geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:streamGenerateContent?alt=sse&key=${activeApiKey}`;
+        for (const candidate of candidateModels) {
+          const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${candidate}:streamGenerateContent?alt=sse&key=${activeApiKey}`;
           upstreamRes = await fetch(geminiUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(requestBody),
           });
+
+          if (upstreamRes.ok) {
+            break;
+          } else {
+            lastErrText = await upstreamRes.text();
+            if (upstreamRes.status === 429 || upstreamRes.status === 503 || upstreamRes.status === 404) {
+              continue;
+            } else {
+              break;
+            }
+          }
         }
 
-        if (!upstreamRes.ok) {
-          const err = await upstreamRes.text();
-          return new Response(JSON.stringify({ error: `Gemini API error: ${err}` }), {
-            status: upstreamRes.status,
+        if (!upstreamRes || !upstreamRes.ok) {
+          return new Response(JSON.stringify({ error: `Gemini API error: ${lastErrText}` }), {
+            status: upstreamRes ? upstreamRes.status : 500,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
@@ -464,28 +468,33 @@ Deno.serve(async (req) => {
         };
       }
 
-      let activeModel = model;
-      let geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${activeApiKey}`;
-      let geminiRes = await fetch(geminiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
-      });
+      const candidateModels = Array.from(new Set([model, "gemini-2.5-flash", "gemini-3.6-flash", "gemini-flash-latest"]));
+      let geminiRes: Response | null = null;
+      let lastErrText = "";
 
-      if (!geminiRes.ok && geminiRes.status === 429 && activeModel !== "gemini-flash-latest") {
-        activeModel = "gemini-flash-latest";
-        geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${activeApiKey}`;
+      for (const candidate of candidateModels) {
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${candidate}:generateContent?key=${activeApiKey}`;
         geminiRes = await fetch(geminiUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(requestBody),
         });
+
+        if (geminiRes.ok) {
+          break;
+        } else {
+          lastErrText = await geminiRes.text();
+          if (geminiRes.status === 429 || geminiRes.status === 503 || geminiRes.status === 404) {
+            continue;
+          } else {
+            break;
+          }
+        }
       }
 
-      if (!geminiRes.ok) {
-        const err = await geminiRes.text();
-        return new Response(JSON.stringify({ error: `Gemini API error: ${err}` }), {
-          status: geminiRes.status,
+      if (!geminiRes || !geminiRes.ok) {
+        return new Response(JSON.stringify({ error: `Gemini API error: ${lastErrText}` }), {
+          status: geminiRes ? geminiRes.status : 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
