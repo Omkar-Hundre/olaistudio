@@ -204,6 +204,22 @@ assert(parsedE.commands.questions.length === 2, 'Extracts fallback questions fro
 assert(parsedE.commands.questions[0].options.length === 3, 'Extracts 3 options from "Option 1" bullet list');
 assert(parsedE.commands.questions[1].options.length === 3, 'Extracts 3 options from "Choice A" bullet list');
 
+// Case F: Foreign Landing Page JSON schema (e.g. pageTitle, sections, companyName)
+const foreignLandingPageJson = JSON.stringify({
+  pageTitle: "Zelos Aura X1 - Beyond Smart. Pure Aura.",
+  companyName: "Zelos Mobile",
+  conversionGoal: "Drive immediate pre-orders.",
+  sections: [
+    { type: "Hero Section", headline: "Beyond Smart. Pure Aura." },
+    { type: "Features", features: [{ title: "Quantum Camera", description: "200MP sensor" }] }
+  ]
+});
+const parsedF = parseSystemCommands(foreignLandingPageJson);
+assert(parsedF.commands !== null, 'Normalizes foreign landing page JSON schema');
+assert(parsedF.commands.ready_for_vision === true, 'Sets ready_for_vision for full page schema');
+assert(parsedF.commands.plan_markdown.includes('Zelos Aura X1'), 'Converts foreign sections to structured plan markdown');
+assert(!parsedF.cleanText.includes('{') && !parsedF.cleanText.includes('pageTitle'), 'Generates clean human greeting without raw JSON dump');
+
 // ==============================================================================
 // SUITE 4: 2-Step Protocol Pipeline State Machine
 // ==============================================================================

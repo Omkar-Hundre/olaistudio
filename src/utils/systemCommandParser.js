@@ -245,16 +245,59 @@ export function parseSystemCommands(text) {
   // 1. Check if the entire response is a pure JSON payload (or markdown-fenced ```json { ... } ```)
   if (trimmed.startsWith('{') || trimmed.startsWith('```json') || trimmed.startsWith('```')) {
     const parsedJson = safeJsonParse(trimmed);
-    if (parsedJson && (parsedJson.greeting || parsedJson.questions || parsedJson.plan_markdown || parsedJson.confidence_score !== undefined)) {
-      // Normalize question keys regardless of model output variant
-      if (parsedJson.questions) {
-        parsedJson.questions = normalizeQuestions(parsedJson.questions);
+    if (parsedJson && typeof parsedJson === 'object') {
+      // Case A: Standard Mother Agent JSON schema
+      if (parsedJson.greeting || parsedJson.questions || parsedJson.plan_markdown || parsedJson.confidence_score !== undefined) {
+        if (parsedJson.questions) {
+          parsedJson.questions = normalizeQuestions(parsedJson.questions);
+        }
+        const cleanGreeting = parsedJson.greeting || parsedJson.plan_markdown || 'Here are the next steps for your project:';
+        return {
+          cleanText: cleanGreeting,
+          commands: parsedJson,
+        };
       }
-      const cleanGreeting = parsedJson.greeting || parsedJson.plan_markdown || 'Here are the next steps for your project:';
-      return {
-        cleanText: cleanGreeting,
-        commands: parsedJson,
-      };
+
+      // Case B: Foreign / Landing Page JSON Schema (e.g. pageTitle, sections, companyName)
+      if (parsedJson.pageTitle || parsedJson.sections || parsedJson.companyName || parsedJson.features || parsedJson.hero) {
+        const title = parsedJson.pageTitle || parsedJson.companyName || 'Landing Page Architecture';
+        
+        // Convert arbitrary sections/features into structured Markdown plan
+        let formattedPlan = `# ${title}\n\n`;
+        if (parsedJson.conversionGoal) formattedPlan += `**Goal:** ${parsedJson.conversionGoal}\n\n`;
+        if (parsedJson.designVibe) formattedPlan += `**Design Vibe:** ${parsedJson.designVibe}\n\n`;
+
+        if (Array.isArray(parsedJson.sections)) {
+          parsedJson.sections.forEach((sec, sIdx) => {
+            formattedPlan += `## ${sIdx + 1}. ${sec.type || sec.title || `Section ${sIdx + 1}`}\n`;
+            if (sec.headline) formattedPlan += `**Headline:** ${sec.headline}\n`;
+            if (sec.subHeadline) formattedPlan += `**Subheadline:** ${sec.subHeadline}\n`;
+            if (sec.visualDescription) formattedPlan += `**Visual Direction:** ${sec.visualDescription}\n`;
+            if (Array.isArray(sec.features)) {
+              sec.features.forEach(f => {
+                formattedPlan += `- **${f.title || 'Feature'}:** ${f.description || ''}\n`;
+              });
+            }
+            formattedPlan += '\n';
+          });
+        }
+
+        const normalizedCommand = {
+          greeting: `I've analyzed your project parameters and structured the architecture for "${title}".`,
+          suggested_title: title.slice(0, 42),
+          confidence_score: 85,
+          current_branch: 'Page Architecture & Scope',
+          ready_for_vision: true,
+          cta_label: 'Cook',
+          questions: [],
+          plan_markdown: formattedPlan.trim(),
+        };
+
+        return {
+          cleanText: normalizedCommand.greeting,
+          commands: normalizedCommand,
+        };
+      }
     }
   }
 

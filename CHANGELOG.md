@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.10.0] - 2026-08-29
 
 ### Added
+- **Foreign JSON Schema Normalization (`systemCommandParser.js`)**:
+  - Implemented auto-detection and conversion for arbitrary landing page schemas (e.g. `pageTitle`, `sections`, `features`, `companyName`), structuring them into rich Markdown project plans rendered in `VisionCard` rather than dumping raw JSON into the chat bubble.
+- **Sleek Minimal Thinking State UI (`ChatWorkspace.jsx`)**:
+  - Redesigned streaming thinking indicator to eliminate boxy frames, nested colored strips, and heavy padding in favor of a clean, minimal, grayscale SaaS aesthetic (`Thinking...` during stream, and subtle `Thought for Xs` on finish).
 - **Gemini 2.5 Flash Model Migration & Deployed AI Proxy v13 (`ai-proxy/index.ts`, `platform_models`, `platformModelService.js`)**:
   - Updated default `Olai M1` backend model from `gemini-2.0-flash` to `gemini-2.5-flash` in `public.platform_models` and deployed `ai-proxy` v13.
 - **Pasted Text Linebreak & Structure Preservation (`ChatWorkspace.jsx`)**:
