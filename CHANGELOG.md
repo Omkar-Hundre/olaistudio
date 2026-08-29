@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.9.0] - 2026-08-29
 
 ### Added
+- **Token Budget Calculator & Context Window Guard (`tokenBudget.js`)**:
+  - Implemented client-side context window monitor strictly enforcing Rule 9 across all model providers (`gemini-2.5-flash` 1M, `gpt-4o` 128k, `claude-3-5-sonnet` 200k).
+  - Guarantees user prompts are 100% protected and never truncated under any condition.
+  - Automatically summarizes older conversation turns into structured digests when payload exceeds 80% ceiling or 50,000 tokens.
+- **Edge Function Secret Lockdown**:
+  - Audited all serverless Edge Functions (`ai-proxy`, `s3-upload-url`) to strictly consume environment secrets via `Deno.env.get(...)` with zero plaintext fallback exposure.
 - **Project Snapshot & Multi-Tier Backup**:
   - Created standalone remote backup branch `backup-stable-v2.9` and Git release tag `v2.9.0-stable` on GitHub.
   - Generated full local workspace archive `olai-backup-v2.9.0.zip` safeguarding all stable code prior to Mother Agent multi-node workflow integration.
