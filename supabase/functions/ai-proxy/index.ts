@@ -193,40 +193,41 @@ Deno.serve(async (req) => {
           temperature: 0.7,
         };
 
-        if (model.includes("2.5") || model.includes("flash")) {
-          generationConfig.thinking_config = {
-            thinking_budget: 0,
-          };
-        }
-
-        const requestBody: any = {
-          contents: geminiContents,
-          generationConfig,
-        };
-
-        if (combinedSystemInstruction && combinedSystemInstruction.trim()) {
-          requestBody.system_instruction = {
-            parts: [{ text: combinedSystemInstruction.trim() }],
-          };
-        }
-
-        const candidateModels = Array.from(new Set([model, "gemini-2.5-flash", "gemini-3.6-flash", "gemini-flash-latest"]));
+        const candidateModels = Array.from(new Set([model, "gemini-3.6-flash", "gemini-2.5-flash", "gemini-flash-latest"]));
         let upstreamRes: Response | null = null;
         let lastErrText = "";
 
         for (const candidate of candidateModels) {
+          const candidateGenConfig = { ...generationConfig };
+          if (candidate === "gemini-2.5-flash") {
+            candidateGenConfig.thinking_config = { thinking_budget: 0 };
+          } else {
+            delete candidateGenConfig.thinking_config;
+          }
+
+          const candidateReqBody: any = {
+            contents: geminiContents,
+            generationConfig: candidateGenConfig,
+          };
+
+          if (combinedSystemInstruction && combinedSystemInstruction.trim()) {
+            candidateReqBody.system_instruction = {
+              parts: [{ text: combinedSystemInstruction.trim() }],
+            };
+          }
+
           const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${candidate}:streamGenerateContent?alt=sse&key=${activeApiKey}`;
           upstreamRes = await fetch(geminiUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(requestBody),
+            body: JSON.stringify(candidateReqBody),
           });
 
           if (upstreamRes.ok) {
             break;
           } else {
             lastErrText = await upstreamRes.text();
-            if (upstreamRes.status === 429 || upstreamRes.status === 503 || upstreamRes.status === 404) {
+            if (upstreamRes.status === 429 || upstreamRes.status === 503 || upstreamRes.status === 404 || upstreamRes.status === 400) {
               continue;
             } else {
               break;
@@ -451,40 +452,41 @@ Deno.serve(async (req) => {
         temperature: 0.7,
       };
 
-      if (model.includes("2.5") || model.includes("flash")) {
-        syncGenerationConfig.thinking_config = {
-          thinking_budget: 0,
-        };
-      }
-
-      const requestBody: any = {
-        contents: geminiContents,
-        generationConfig: syncGenerationConfig,
-      };
-
-      if (combinedSystemInstruction && combinedSystemInstruction.trim()) {
-        requestBody.system_instruction = {
-          parts: [{ text: combinedSystemInstruction.trim() }],
-        };
-      }
-
-      const candidateModels = Array.from(new Set([model, "gemini-2.5-flash", "gemini-3.6-flash", "gemini-flash-latest"]));
+      const candidateModels = Array.from(new Set([model, "gemini-3.6-flash", "gemini-2.5-flash", "gemini-flash-latest"]));
       let geminiRes: Response | null = null;
       let lastErrText = "";
 
       for (const candidate of candidateModels) {
+        const candidateSyncConfig = { ...syncGenerationConfig };
+        if (candidate === "gemini-2.5-flash") {
+          candidateSyncConfig.thinking_config = { thinking_budget: 0 };
+        } else {
+          delete candidateSyncConfig.thinking_config;
+        }
+
+        const candidateReqBody: any = {
+          contents: geminiContents,
+          generationConfig: candidateSyncConfig,
+        };
+
+        if (combinedSystemInstruction && combinedSystemInstruction.trim()) {
+          candidateReqBody.system_instruction = {
+            parts: [{ text: combinedSystemInstruction.trim() }],
+          };
+        }
+
         const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${candidate}:generateContent?key=${activeApiKey}`;
         geminiRes = await fetch(geminiUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestBody),
+          body: JSON.stringify(candidateReqBody),
         });
 
         if (geminiRes.ok) {
           break;
         } else {
           lastErrText = await geminiRes.text();
-          if (geminiRes.status === 429 || geminiRes.status === 503 || geminiRes.status === 404) {
+          if (geminiRes.status === 429 || geminiRes.status === 503 || geminiRes.status === 404 || geminiRes.status === 400) {
             continue;
           } else {
             break;
