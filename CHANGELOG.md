@@ -13,8 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Project Snapshot & Multi-Tier Backup**:
   - Created standalone remote backup branch `backup-stable-v2.9` and Git release tag `v2.9.0-stable` on GitHub.
   - Generated full local workspace archive `olai-backup-v2.9.0.zip` safeguarding all stable code prior to Mother Agent multi-node workflow integration.
-- **Platform Gemini Key & Edge Function Deployment (v3)**:
-  - Validated and updated default platform API key in the serverless `ai-proxy` Edge Function.
+- **Platform Gemini Key & Edge Function Deployment (v5)**:
+  - Verified and deployed new Google Gemini API key to the active serverless `ai-proxy` Edge Function container.
+  - Sanitized local repository code to prevent secret scanner alerts while maintaining full runtime operational capability.
   - Upgraded default `Olai M1` model to `gemini-2.5-flash` in `public.platform_models` table.
 - **Secure AWS S3 Integration via Edge Function**:
   - Built a secure Supabase Edge Function (`s3-upload-url`) to generate pre-signed upload URLs, fully decoupling AWS secrets from the frontend bundle.
