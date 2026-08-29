@@ -17,7 +17,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { getUserCredits } from '../../services/creditService';
 import {
   Plus,
-  Trophy,
+  Compass,
   Search,
   FolderKanban,
   Settings,
@@ -126,16 +126,16 @@ export default function Sidebar({
             <button
               type="button"
               onClick={() => {
-                if (onSelectTab) onSelectTab('leaderboard');
+                if (onSelectTab) onSelectTab('templates');
                 if (onCloseMobile) onCloseMobile();
               }}
               className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium text-slate-600 dark:text-zinc-400 hover:bg-slate-200/50 dark:hover:bg-zinc-800/60 hover:text-slate-900 dark:hover:text-zinc-200 transition-colors ${
                 isCollapsed ? 'justify-center px-0' : ''
               }`}
-              title="Leaderboard"
+              title="Templates"
             >
-              <Trophy className="h-4 w-4 shrink-0 text-slate-400 dark:text-zinc-500" />
-              {!isCollapsed && <span>Leaderboard</span>}
+              <Compass className="h-4 w-4 shrink-0 text-slate-400 dark:text-zinc-500" />
+              {!isCollapsed && <span>Templates</span>}
             </button>
 
             <button

@@ -202,7 +202,7 @@ export default function ChatWorkspace({ onCreditDeducted }) {
               provider: 'gemini',
               rawModel: modelName,
               isPlatform: false,
-              creditCost: 'Custom Key (0 credits)',
+              creditCost: '',
             });
           });
         }
@@ -218,7 +218,7 @@ export default function ChatWorkspace({ onCreditDeducted }) {
               provider: 'openai',
               rawModel: modelName,
               isPlatform: false,
-              creditCost: 'Custom Key (0 credits)',
+              creditCost: '',
             });
           });
         }
@@ -234,7 +234,7 @@ export default function ChatWorkspace({ onCreditDeducted }) {
               provider: 'claude',
               rawModel: modelName,
               isPlatform: false,
-              creditCost: 'Custom Key (0 credits)',
+              creditCost: '',
             });
           });
         }
@@ -582,9 +582,11 @@ export default function ChatWorkspace({ onCreditDeducted }) {
                           >
                             <div className="flex flex-col text-left overflow-hidden">
                               <span className="truncate font-medium">{m.name}</span>
-                              <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-mono">
-                                {m.creditCost}
-                              </span>
+                              {m.creditCost && (
+                                <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-mono">
+                                  {m.creditCost}
+                                </span>
+                              )}
                             </div>
                             {isSelected && <Check className="h-3.5 w-3.5 shrink-0 text-slate-900 dark:text-zinc-100 ml-2" />}
                           </button>

@@ -65,7 +65,7 @@ export default function AppDashboard() {
         {/* Top Header Bar matching Reference UI */}
         <header className="flex h-13 shrink-0 items-center justify-between border-b border-slate-200/70 dark:border-zinc-800 bg-white/95 dark:bg-[#0E0F12]/95 px-4 md:px-6 z-30 transition-colors">
           
-          {/* Left: Mobile Toggle & Mode Dropdown */}
+          {/* Left: Mobile Toggle */}
           <div className="flex items-center gap-2.5">
             <button
               type="button"
@@ -74,15 +74,6 @@ export default function AppDashboard() {
               aria-label="Open navigation sidebar"
             >
               <Menu className="h-4 w-4" />
-            </button>
-
-            {/* Mode Dropdown */}
-            <button
-              type="button"
-              className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-            >
-              <span>Mode</span>
-              <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
             </button>
           </div>
 
