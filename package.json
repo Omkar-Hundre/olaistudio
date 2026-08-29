@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "db:sync": "node scripts/sync-schema.js",
     "test:pipeline": "node scripts/test-pipeline.js",
-    "inspect:payloads": "node scripts/inspect-payloads.js"
+    "inspect:payloads": "node scripts/inspect-payloads.js",
+    "inspect:db": "node scripts/inspect-db.js",
+    "test:prompt": "node scripts/test-prompt.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1121.0",

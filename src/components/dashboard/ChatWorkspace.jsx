@@ -558,8 +558,11 @@ export default function ChatWorkspace({
               setCurrentBranch(commands.current_branch);
             }
             
-            const fallbackTitle = (rawText || '').split('\n')[0].slice(0, 42).trim() || 'Project Chat';
-            const finalTitle = commands?.suggested_title || (sessionTitle && sessionTitle !== 'New Session' && sessionTitle !== 'New Conversation' ? sessionTitle : fallbackTitle);
+            const isChoiceSubmission = (rawText || '').startsWith('Here are my choices:');
+            const fallbackTitle = !isChoiceSubmission 
+              ? ((rawText || '').split('\n')[0].slice(0, 42).trim() || 'Project Chat')
+              : 'Project Architecture';
+            const finalTitle = commands?.suggested_title || (sessionTitle && sessionTitle !== 'New Session' && sessionTitle !== 'New Conversation' && !sessionTitle.startsWith('Here are my choices:') ? sessionTitle : fallbackTitle);
             setSessionTitle(finalTitle);
             if (activeSessionId) {
               updateWorkflowSession(activeSessionId, { title: finalTitle });

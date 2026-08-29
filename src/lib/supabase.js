@@ -12,6 +12,12 @@
 
 import { createClient } from '@supabase/supabase-js';
 
+try {
+  if (typeof process !== 'undefined' && process.loadEnvFile) {
+    process.loadEnvFile();
+  }
+} catch (e) {}
+
 const getEnvVar = (key) => {
   if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
     return import.meta.env[key];
