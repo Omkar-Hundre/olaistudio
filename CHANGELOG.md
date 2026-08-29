@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.10.0] - 2026-08-29
 
 ### Added
+- **Exhaustive Master Plan Depth & Technical Granularity (`workspaceModeService.js`, `workspace_modes`)**:
+  - Enforced strict depth requirements in Mother Agent system prompts across all workspace modes: mandating 800+ words of granular specifications across all 7 sections (concrete DB schemas, typed API contracts, explicit UI design tokens, phased engineering tasks, and quantifiable KPIs), strictly prohibiting shallow 3-4 word bullet fragments.
 - **Adaptive Scope & Plan Synthesis (`systemCommandParser.js`, `ChatWorkspace.jsx`)**:
   - Dynamically evaluates prompt completeness: for high-level prompts, provides targeted Step 1 questionnaires; for comprehensive, fully-specified prompts, immediately synthesizes the Master Plan without forcing redundant questions, allowing instant review and customization via the **"Edit Plan"** action.
 - **Interactive In-Place Plan Editor (`VisionCard.jsx`, `ChatWorkspace.jsx`)**:
