@@ -10,8 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.10.0] - 2026-08-29
 
 ### Added
-- **Foreign JSON Schema Normalization (`systemCommandParser.js`)**:
-  - Implemented auto-detection and conversion for arbitrary landing page schemas (e.g. `pageTitle`, `sections`, `features`, `companyName`), structuring them into rich Markdown project plans rendered in `VisionCard` rather than dumping raw JSON into the chat bubble.
+- **Domain-Agnostic Universal JSON Architecture Normalizer (`systemCommandParser.js`)**:
+  - Implemented `convertArbitraryJsonToMarkdown()` to recursively and generically convert any arbitrary JSON structure (regardless of domain, format, or industry — mobile, backend microservices, ML pipelines, web apps, cloud infra) into a clean, hierarchical Markdown document rendered in `VisionCard`, eliminating hardcoded domain rules.
+- **Fixed First-Prompt Output Disappearance Race Condition (`ChatWorkspace.jsx`)**:
+  - Resolved race condition where creating a new session on the first prompt caused `activeSessionId` change in parent component to trigger an asynchronous database re-fetch before the assistant response was committed, overwriting live state. Added `currentLoadedSessionIdRef` guard to protect live in-memory messages.
 - **Sleek Minimal Thinking State UI (`ChatWorkspace.jsx`)**:
   - Redesigned streaming thinking indicator to eliminate boxy frames, nested colored strips, and heavy padding in favor of a clean, minimal, grayscale SaaS aesthetic (`Thinking...` during stream, and subtle `Thought for Xs` on finish).
 - **Gemini 2.5 Flash Model Migration & Deployed AI Proxy v13 (`ai-proxy/index.ts`, `platform_models`, `platformModelService.js`)**:

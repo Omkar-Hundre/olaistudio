@@ -231,6 +231,74 @@ function normalizeQuestions(rawQuestions) {
 }
 
 /**
+ * Helper to humanize object keys: camelCase / snake_case -> Title Case
+ * @param {string} key 
+ * @returns {string}
+ */
+function humanizeKey(key) {
+  if (!key || typeof key !== 'string') return '';
+  return key
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/[_-]+/g, ' ')
+    .replace(/^\w/, (c) => c.toUpperCase())
+    .trim();
+}
+
+/**
+ * Universal JSON to Markdown Converter:
+ * Recursively and generically converts ANY arbitrary JSON structure (regardless of domain, 
+ * problem type, industry, or format) into a beautifully formatted, hierarchical Markdown document.
+ * @param {Object | Array} data
+ * @param {number} [depth=1]
+ * @returns {string}
+ */
+export function convertArbitraryJsonToMarkdown(data, depth = 1) {
+  if (data === null || data === undefined) return '';
+  if (typeof data !== 'object') return String(data);
+
+  if (Array.isArray(data)) {
+    return data
+      .map((item, idx) => {
+        if (typeof item !== 'object' || item === null) {
+          return `- ${item}`;
+        }
+        const itemTitle = item.title || item.name || item.type || item.heading || item.label || `Item ${idx + 1}`;
+        const remainingProps = Object.entries(item).filter(([k]) => !['title', 'name', 'type', 'heading', 'label'].includes(k));
+        
+        let out = `### ${itemTitle}\n`;
+        for (const [k, v] of remainingProps) {
+          if (typeof v === 'object' && v !== null) {
+            out += `**${humanizeKey(k)}:**\n${convertArbitraryJsonToMarkdown(v, depth + 1)}\n`;
+          } else {
+            out += `- **${humanizeKey(k)}:** ${v}\n`;
+          }
+        }
+        return out;
+      })
+      .join('\n');
+  }
+
+  // Object handling
+  let markdown = '';
+  const entries = Object.entries(data);
+
+  for (const [key, value] of entries) {
+    const formattedKey = humanizeKey(key);
+    if (value === null || value === undefined) continue;
+
+    if (typeof value !== 'object') {
+      markdown += `- **${formattedKey}:** ${value}\n`;
+    } else if (Array.isArray(value)) {
+      markdown += `\n## ${formattedKey}\n\n${convertArbitraryJsonToMarkdown(value, depth + 1)}\n`;
+    } else {
+      markdown += `\n## ${formattedKey}\n\n${convertArbitraryJsonToMarkdown(value, depth + 1)}\n`;
+    }
+  }
+
+  return markdown.trim();
+}
+
+/**
  * Parses structured JSON response or system commands from AI output
  * @param {string} text 
  * @returns {{ cleanText: string, commands: Object | null }}
@@ -258,46 +326,27 @@ export function parseSystemCommands(text) {
         };
       }
 
-      // Case B: Foreign / Landing Page JSON Schema (e.g. pageTitle, sections, companyName)
-      if (parsedJson.pageTitle || parsedJson.sections || parsedJson.companyName || parsedJson.features || parsedJson.hero) {
-        const title = parsedJson.pageTitle || parsedJson.companyName || 'Landing Page Architecture';
-        
-        // Convert arbitrary sections/features into structured Markdown plan
-        let formattedPlan = `# ${title}\n\n`;
-        if (parsedJson.conversionGoal) formattedPlan += `**Goal:** ${parsedJson.conversionGoal}\n\n`;
-        if (parsedJson.designVibe) formattedPlan += `**Design Vibe:** ${parsedJson.designVibe}\n\n`;
+      // Case B: Truly Universal Arbitrary JSON Handling (No hardcoded domain/problem keys!)
+      // Handles any problem: Web apps, mobile, CLI, ML pipelines, e-commerce, cloud architecture, etc.
+      const candidateTitle = parsedJson.title || parsedJson.pageTitle || parsedJson.name || parsedJson.project || parsedJson.companyName || parsedJson.appName || parsedJson.serviceName || Object.keys(parsedJson)[0] || 'Project Architecture';
+      const cleanTitle = typeof candidateTitle === 'string' ? candidateTitle.slice(0, 48) : 'Project Architecture';
+      const universalPlan = convertArbitraryJsonToMarkdown(parsedJson);
 
-        if (Array.isArray(parsedJson.sections)) {
-          parsedJson.sections.forEach((sec, sIdx) => {
-            formattedPlan += `## ${sIdx + 1}. ${sec.type || sec.title || `Section ${sIdx + 1}`}\n`;
-            if (sec.headline) formattedPlan += `**Headline:** ${sec.headline}\n`;
-            if (sec.subHeadline) formattedPlan += `**Subheadline:** ${sec.subHeadline}\n`;
-            if (sec.visualDescription) formattedPlan += `**Visual Direction:** ${sec.visualDescription}\n`;
-            if (Array.isArray(sec.features)) {
-              sec.features.forEach(f => {
-                formattedPlan += `- **${f.title || 'Feature'}:** ${f.description || ''}\n`;
-              });
-            }
-            formattedPlan += '\n';
-          });
-        }
+      const normalizedCommand = {
+        greeting: `I've analyzed your requirements and generated the complete project architecture for "${cleanTitle}".`,
+        suggested_title: cleanTitle,
+        confidence_score: 85,
+        current_branch: 'Master Architecture & Scope',
+        ready_for_vision: true,
+        cta_label: 'Cook',
+        questions: [],
+        plan_markdown: `# ${cleanTitle}\n\n${universalPlan}`,
+      };
 
-        const normalizedCommand = {
-          greeting: `I've analyzed your project parameters and structured the architecture for "${title}".`,
-          suggested_title: title.slice(0, 42),
-          confidence_score: 85,
-          current_branch: 'Page Architecture & Scope',
-          ready_for_vision: true,
-          cta_label: 'Cook',
-          questions: [],
-          plan_markdown: formattedPlan.trim(),
-        };
-
-        return {
-          cleanText: normalizedCommand.greeting,
-          commands: normalizedCommand,
-        };
-      }
+      return {
+        cleanText: normalizedCommand.greeting,
+        commands: normalizedCommand,
+      };
     }
   }
 

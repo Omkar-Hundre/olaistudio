@@ -92,11 +92,24 @@ export default function ChatWorkspace({
 
   // Active Mode State
   const [activeMode, setActiveMode] = useState(null);
+  const currentLoadedSessionIdRef = useRef(activeSessionId);
 
   // Load existing session data when activeSessionId changes
   useEffect(() => {
+    // If activeSessionId is already loaded or matches the session just created in memory, protect live state
+    if (activeSessionId && activeSessionId === currentLoadedSessionIdRef.current) {
+      return;
+    }
+
+    if (activeSessionId && sessionIdRef.current === activeSessionId && messages.length > 0) {
+      currentLoadedSessionIdRef.current = activeSessionId;
+      return;
+    }
+
+    currentLoadedSessionIdRef.current = activeSessionId;
     sessionIdRef.current = activeSessionId;
     setSessionId(activeSessionId);
+
     if (activeSessionId) {
       getWorkflowSession(activeSessionId).then(({ session }) => {
         if (session) {
@@ -471,6 +484,7 @@ export default function ChatWorkspace({
       if (sessionResult.session) {
         activeSessionId = sessionResult.session.id;
         sessionIdRef.current = activeSessionId;
+        currentLoadedSessionIdRef.current = activeSessionId;
         setSessionId(activeSessionId);
       }
     }
