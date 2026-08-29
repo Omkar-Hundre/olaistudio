@@ -7,14 +7,26 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+// System-hosted Gemini platform API key
 const PLATFORM_DEFAULT_GEMINI_KEY = Deno.env.get("GEMINI_API_KEY") || "";
 
-Deno.serve(async (req: Request) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      }
+    );
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Missing Authorization header" }), {
@@ -23,13 +35,9 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
 
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
     if (userError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized user" }), {
         status: 401,
@@ -37,22 +45,16 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const body = await req.json().catch(() => ({}));
     const {
       provider = "gemini",
-      model = "gemini-2.5-flash",
+      model = "gemini-2.0-flash",
       messages = [],
       systemPrompt = "",
       stream = false,
-    } = body;
+      responseFormat = "json",
+    } = await req.json();
 
-    if (!Array.isArray(messages) || messages.length === 0) {
-      return new Response(JSON.stringify({ error: "Messages array is required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
+    // Fetch user's custom API keys if present
     const { data: customKeys } = await supabaseClient
       .from("user_api_keys")
       .select("openai_key, claude_key, gemini_key")
@@ -115,30 +117,43 @@ Deno.serve(async (req: Request) => {
     // =========================================================================
     if (stream) {
       if (provider === "gemini") {
-        const geminiContents = [];
-        if (systemPrompt && systemPrompt.trim()) {
-          geminiContents.push({
-            role: "user",
-            parts: [{ text: `[SYSTEM INSTRUCTION]\n${systemPrompt.trim()}` }],
-          });
-          geminiContents.push({
-            role: "model",
-            parts: [{ text: "Understood. I will strictly follow these system instructions." }],
-          });
-        }
+        const geminiContents: any[] = [];
 
+        // Build clean conversation turns (excluding system messages from contents)
         messages.forEach((m: any) => {
+          if (m.role === "system") return;
           geminiContents.push({
             role: m.role === "assistant" ? "model" : "user",
             parts: [{ text: typeof m.content === "string" ? m.content : JSON.stringify(m.content) }],
           });
         });
 
+        // If no user message was provided, add minimal prompt
+        if (geminiContents.length === 0) {
+          geminiContents.push({
+            role: "user",
+            parts: [{ text: "Hello! Let's begin." }],
+          });
+        }
+
+        const requestBody: any = {
+          contents: geminiContents,
+          generationConfig: {
+            response_mime_type: "application/json",
+          },
+        };
+
+        if (systemPrompt && systemPrompt.trim()) {
+          requestBody.system_instruction = {
+            parts: [{ text: systemPrompt.trim() }],
+          };
+        }
+
         const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${activeApiKey}`;
         const upstreamRes = await fetch(geminiUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ contents: geminiContents }),
+          body: JSON.stringify(requestBody),
         });
 
         if (!upstreamRes.ok) {
@@ -200,7 +215,7 @@ Deno.serve(async (req: Request) => {
                 stream: true,
               },
             }).catch(() => {});
-          },
+          }
         });
 
         return new Response(upstreamRes.body?.pipeThrough(transformStream), {
@@ -212,21 +227,24 @@ Deno.serve(async (req: Request) => {
           },
         });
       } else {
+        // OpenAI / Claude streaming fallback
         const openaiMessages = [...messages];
         if (systemPrompt && systemPrompt.trim()) {
           openaiMessages.unshift({ role: "system", content: systemPrompt.trim() });
         }
 
-        const upstreamRes = await fetch("https://api.openai.com/v1/chat/completions", {
+        const openaiUrl = "https://api.openai.com/v1/chat/completions";
+        const upstreamRes = await fetch(openaiUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${activeApiKey}`,
           },
           body: JSON.stringify({
-            model: model.includes("gpt") ? model : "gpt-4o-mini",
+            model: model.startsWith("gpt") ? model : "gpt-4o",
             messages: openaiMessages,
             stream: true,
+            response_format: { type: "json_object" },
           }),
         });
 
@@ -238,7 +256,6 @@ Deno.serve(async (req: Request) => {
           });
         }
 
-        // Deduct credit only after upstream call is verified 200 OK
         let remainingBalance = 100;
         if (!isUserCustomKey) {
           const { data: deductResult } = await supabaseClient.rpc("deduct_user_credits", { p_amount: 1 });
@@ -309,30 +326,33 @@ Deno.serve(async (req: Request) => {
     // =========================================================================
     let reply = "";
     if (provider === "gemini") {
-      const geminiContents = [];
-      if (systemPrompt && systemPrompt.trim()) {
-        geminiContents.push({
-          role: "user",
-          parts: [{ text: `[SYSTEM INSTRUCTION]\n${systemPrompt.trim()}` }],
-        });
-        geminiContents.push({
-          role: "model",
-          parts: [{ text: "Understood. I will strictly follow these system instructions." }],
-        });
-      }
-
+      const geminiContents: any[] = [];
       messages.forEach((m: any) => {
+        if (m.role === "system") return;
         geminiContents.push({
           role: m.role === "assistant" ? "model" : "user",
           parts: [{ text: typeof m.content === "string" ? m.content : JSON.stringify(m.content) }],
         });
       });
 
+      const requestBody: any = {
+        contents: geminiContents,
+        generationConfig: {
+          response_mime_type: "application/json",
+        },
+      };
+
+      if (systemPrompt && systemPrompt.trim()) {
+        requestBody.system_instruction = {
+          parts: [{ text: systemPrompt.trim() }],
+        };
+      }
+
       const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeApiKey}`;
       const geminiRes = await fetch(geminiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents: geminiContents }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!geminiRes.ok) {
@@ -351,15 +371,17 @@ Deno.serve(async (req: Request) => {
         openaiMessages.unshift({ role: "system", content: systemPrompt.trim() });
       }
 
-      const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+      const openaiUrl = "https://api.openai.com/v1/chat/completions";
+      const openaiRes = await fetch(openaiUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${activeApiKey}`,
         },
         body: JSON.stringify({
-          model: model.includes("gpt") ? model : "gpt-4o-mini",
+          model: model.startsWith("gpt") ? model : "gpt-4o",
           messages: openaiMessages,
+          response_format: { type: "json_object" },
         }),
       });
 
@@ -375,17 +397,18 @@ Deno.serve(async (req: Request) => {
       reply = openaiData.choices?.[0]?.message?.content || "";
     }
 
-    let creditsRemaining = 100;
+    // Deduct credit only on verified 200 OK response
+    let remainingBalance = 100;
     if (!isUserCustomKey) {
       const { data: deductResult } = await supabaseClient.rpc("deduct_user_credits", { p_amount: 1 });
       if (deductResult?.balance !== undefined) {
-        creditsRemaining = deductResult.balance;
+        remainingBalance = deductResult.balance;
       }
     }
 
     await supabaseClient.from("activity_logs").insert({
       user_id: user.id,
-      action: isUserCustomKey ? "Chat (Custom Key)" : "Chat (Platform Credit)",
+      action: isUserCustomKey ? "Chat Request (Custom Key)" : "Chat Request (Platform Credit)",
       model: `${provider}/${model}`,
       credits_used: isUserCustomKey ? 0 : 1,
       details: {
@@ -394,19 +417,20 @@ Deno.serve(async (req: Request) => {
         used_user_key: isUserCustomKey,
         messages_count: messages.length,
       },
-    }).catch(() => {});
+    });
 
     return new Response(
       JSON.stringify({
         reply,
-        creditsRemaining,
+        creditsRemaining: remainingBalance,
         usedUserKey: isUserCustomKey,
-        model,
       }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
     );
   } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message || "Internal Server Error" }), {
+    return new Response(JSON.stringify({ error: err.message || "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

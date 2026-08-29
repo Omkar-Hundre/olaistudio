@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.9.0] - 2026-08-29
 
 ### Added
+- **Native JSON Response Enforcement & Deployed AI Proxy v8 (`ai-proxy/index.ts`)**:
+  - Deployed `ai-proxy` v8 to Supabase with Gemini API engine enforcement `response_mime_type: "application/json"` and `system_instruction` integration.
+  - Added real-time performance logger measuring TTFT, total stream duration, and JSON-to-modal parsing latency in milliseconds.
+  - Built borderless thinking preview during generation that automatically collapses into a subtle `"Thinking details"` dropdown upon stream completion.
 - **Live Raw Stream Thinking & Instant Modal Extraction (`systemCommandParser.js`, `ChatWorkspace.jsx`)**:
   - Rendered live raw model streaming in the message bubble during the generation/thinking stage.
   - On stream completion, instantly converted question text (including `Option 1`, `Choice A`, indented sub-lines) into the interactive Questionnaire Modal while leaving the concise greeting in the chat bubble.

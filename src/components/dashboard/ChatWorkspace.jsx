@@ -411,6 +411,9 @@ export default function ChatWorkspace({
       }
     }
 
+    const startTime = performance.now();
+    let firstChunkTime = null;
+
     try {
       await sendStreamingProxyChatMessage({
         messages: apiPayload,
@@ -418,14 +421,21 @@ export default function ChatWorkspace({
         model: selectedModel.rawModel,
         systemPrompt: activeMode?.systemPrompt || '',
         onChunk: (_delta, accumulatedFullText) => {
-          let cleanStreamingText = accumulatedFullText.replace(/%%%SYSTEM_CMD%%%[\s\S]*$/, '').trim();
+          if (!firstChunkTime) {
+            firstChunkTime = performance.now();
+            console.log(`[AI Performance] ⚡ TTFT (Time to First Token): ${Math.round(firstChunkTime - startTime)}ms`);
+          }
+
+          let cleanStreamingText = '';
           
           // If response is streaming JSON, extract greeting preview dynamically
           const greetingMatch = accumulatedFullText.match(/"greeting"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
           if (greetingMatch) {
             cleanStreamingText = greetingMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
           } else if (accumulatedFullText.trim().startsWith('{') || accumulatedFullText.trim().startsWith('```')) {
-            cleanStreamingText = 'Analyzing your project requirements...';
+            cleanStreamingText = 'Analyzing requirements and preparing questions...';
+          } else {
+            cleanStreamingText = accumulatedFullText.replace(/%%%SYSTEM_CMD%%%[\s\S]*$/, '').trim();
           }
 
           setMessages((prev) => {
@@ -441,8 +451,15 @@ export default function ChatWorkspace({
           });
         },
         onDone: ({ fullText }) => {
+          const doneTime = performance.now();
+          console.log(`[AI Performance] 🏁 Stream Completed in: ${Math.round(doneTime - startTime)}ms`);
+
           setIsSending(false);
+          const parseStart = performance.now();
           const { cleanText, commands } = parseSystemCommands(fullText);
+          const parseEnd = performance.now();
+          console.log(`[AI Performance] 🎯 Modal Parsed in: ${(parseEnd - parseStart).toFixed(2)}ms`);
+
           const fullContent = fullText.replace(/%%%SYSTEM_CMD%%%[\s\S]*$/, '').trim();
 
           const finalAssistantMessage = {
@@ -451,6 +468,8 @@ export default function ChatWorkspace({
             displayContent: cleanText,
             modelName: selectedModel.name,
             timestamp: new Date().toISOString(),
+            durationMs: Math.round(doneTime - startTime),
+            rawThinkingContent: commands?.greeting ? `Analyzed scope for "${commands.suggested_title || 'Project'}" with ${commands.questions?.length || 0} questions ready.` : '',
             isStreaming: false,
           };
 
@@ -651,16 +670,31 @@ export default function ChatWorkspace({
                         </div>
                       )}
 
-                      <p className="whitespace-pre-wrap">
-                        {msg.displayContent || msg.content || (msg.isStreaming ? (
-                          <span className="inline-flex items-center gap-1.5 text-slate-400 dark:text-zinc-500 italic">
-                            <Loader2 className="h-3 w-3 animate-spin" /> Thinking...
+                      {!isUser && msg.rawThinkingContent && (
+                        <details className="mb-2 group">
+                          <summary className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300 cursor-pointer select-none list-none">
+                            <Sparkles className="h-3 w-3 text-amber-500" />
+                            <span>Thinking details {msg.durationMs ? `(${Math.round(msg.durationMs)}ms)` : ''}</span>
+                            <ChevronDown className="h-3 w-3 transition-transform group-open:rotate-180" />
+                          </summary>
+                          <div className="mt-1.5 pl-3 border-l-2 border-slate-200 dark:border-zinc-700 text-[11px] text-slate-500 dark:text-zinc-400 leading-relaxed">
+                            {msg.rawThinkingContent}
+                          </div>
+                        </details>
+                      )}
+
+                      {!isUser && msg.isStreaming ? (
+                        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400 py-0.5">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-700 dark:text-zinc-300" />
+                          <span className="font-medium text-slate-700 dark:text-zinc-300">
+                            {msg.displayContent || 'Reasoning through requirements...'}
                           </span>
-                        ) : '')}
-                        {msg.isStreaming && msg.content && (
-                          <span className="inline-block w-1.5 h-3.5 bg-slate-700 dark:bg-zinc-300 ml-0.5 animate-pulse align-middle" />
-                        )}
-                      </p>
+                        </div>
+                      ) : (
+                        <p className="whitespace-pre-wrap">
+                          {msg.displayContent || msg.content}
+                        </p>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-2 px-1 text-[10px] text-slate-400 dark:text-zinc-500">
