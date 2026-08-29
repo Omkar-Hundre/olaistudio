@@ -73,25 +73,24 @@ Deno.serve(async (req: Request) => {
       isUserCustomKey = true;
     }
 
-    let creditsRemaining = 100;
-    let creditsDeducted = 0;
-
+    // Check balance if platform credit will be used
     if (!isUserCustomKey) {
-      const { data: deductResult, error: deductError } = await supabaseClient.rpc("deduct_user_credits", {
-        p_amount: 1,
-      });
+      const { data: creditRow } = await supabaseClient
+        .from("user_credits")
+        .select("balance")
+        .eq("user_id", user.id)
+        .maybeSingle();
 
-      if (deductError || !deductResult?.success) {
+      const balance = creditRow?.balance ?? 0;
+      if (balance <= 0) {
         return new Response(
           JSON.stringify({
             error: "Insufficient credits. Please add your own API key in Settings to continue.",
-            balance: deductResult?.balance ?? 0,
+            balance: 0,
           }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      creditsRemaining = deductResult.balance;
-      creditsDeducted = 1;
 
       if (provider === "gemini") {
         activeApiKey = PLATFORM_DEFAULT_GEMINI_KEY;
@@ -150,10 +149,17 @@ Deno.serve(async (req: Request) => {
           });
         }
 
-        // Transform Gemini SSE stream into standard JSON SSE stream
+        // Deduct credit only after upstream call is verified 200 OK
+        let remainingBalance = 100;
+        if (!isUserCustomKey) {
+          const { data: deductResult } = await supabaseClient.rpc("deduct_user_credits", { p_amount: 1 });
+          if (deductResult?.balance !== undefined) {
+            remainingBalance = deductResult.balance;
+          }
+        }
+
         const encoder = new TextEncoder();
         const decoder = new TextDecoder();
-        let totalFullText = "";
 
         const transformStream = new TransformStream({
           transform(chunk, controller) {
@@ -168,13 +174,12 @@ Deno.serve(async (req: Request) => {
                   const parsed = JSON.parse(jsonStr);
                   const deltaText = parsed.candidates?.[0]?.content?.parts?.[0]?.text || "";
                   if (deltaText) {
-                    totalFullText += deltaText;
                     controller.enqueue(
-                      encoder.encode(`data: ${JSON.stringify({ delta: deltaText, creditsRemaining })}\n\n`)
+                      encoder.encode(`data: ${JSON.stringify({ delta: deltaText, creditsRemaining: remainingBalance })}\n\n`)
                     );
                   }
                 } catch {
-                  // Skip partial JSON chunks
+                  // ignore
                 }
               }
             }
@@ -182,12 +187,11 @@ Deno.serve(async (req: Request) => {
           flush(controller) {
             controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
 
-            // Record audit log asynchronously
             supabaseClient.from("activity_logs").insert({
               user_id: user.id,
               action: isUserCustomKey ? "Stream Chat (Custom Key)" : "Stream Chat (Platform Credit)",
               model: `${provider}/${model}`,
-              credits_used: creditsDeducted,
+              credits_used: isUserCustomKey ? 0 : 1,
               details: {
                 provider,
                 model,
@@ -208,7 +212,6 @@ Deno.serve(async (req: Request) => {
           },
         });
       } else {
-        // OpenAI / Custom Streaming
         const openaiMessages = [...messages];
         if (systemPrompt && systemPrompt.trim()) {
           openaiMessages.unshift({ role: "system", content: systemPrompt.trim() });
@@ -235,6 +238,15 @@ Deno.serve(async (req: Request) => {
           });
         }
 
+        // Deduct credit only after upstream call is verified 200 OK
+        let remainingBalance = 100;
+        if (!isUserCustomKey) {
+          const { data: deductResult } = await supabaseClient.rpc("deduct_user_credits", { p_amount: 1 });
+          if (deductResult?.balance !== undefined) {
+            remainingBalance = deductResult.balance;
+          }
+        }
+
         const encoder = new TextEncoder();
         const decoder = new TextDecoder();
 
@@ -255,7 +267,7 @@ Deno.serve(async (req: Request) => {
                   const deltaText = parsed.choices?.[0]?.delta?.content || "";
                   if (deltaText) {
                     controller.enqueue(
-                      encoder.encode(`data: ${JSON.stringify({ delta: deltaText, creditsRemaining })}\n\n`)
+                      encoder.encode(`data: ${JSON.stringify({ delta: deltaText, creditsRemaining: remainingBalance })}\n\n`)
                     );
                   }
                 } catch {
@@ -269,7 +281,7 @@ Deno.serve(async (req: Request) => {
               user_id: user.id,
               action: isUserCustomKey ? "Stream Chat (Custom Key)" : "Stream Chat (Platform Credit)",
               model: `${provider}/${model}`,
-              credits_used: creditsDeducted,
+              credits_used: isUserCustomKey ? 0 : 1,
               details: {
                 provider,
                 model,
@@ -293,7 +305,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // =========================================================================
-    // SYNCHRONOUS / NON-STREAMING MODE
+    // SYNCHRONOUS MODE
     // =========================================================================
     let reply = "";
     if (provider === "gemini") {
@@ -363,12 +375,19 @@ Deno.serve(async (req: Request) => {
       reply = openaiData.choices?.[0]?.message?.content || "";
     }
 
-    // Auto-record log in activity_logs
+    let creditsRemaining = 100;
+    if (!isUserCustomKey) {
+      const { data: deductResult } = await supabaseClient.rpc("deduct_user_credits", { p_amount: 1 });
+      if (deductResult?.balance !== undefined) {
+        creditsRemaining = deductResult.balance;
+      }
+    }
+
     await supabaseClient.from("activity_logs").insert({
       user_id: user.id,
       action: isUserCustomKey ? "Chat (Custom Key)" : "Chat (Platform Credit)",
       model: `${provider}/${model}`,
-      credits_used: creditsDeducted,
+      credits_used: isUserCustomKey ? 0 : 1,
       details: {
         provider,
         model,

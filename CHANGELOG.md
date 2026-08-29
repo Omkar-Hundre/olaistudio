@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.9.0] - 2026-08-29
 
 ### Added
+- **UI Theme Refinements & Inline Alignment Bar (`ChatWorkspace.jsx`)**:
+  - Replaced pitch black `#000000` with comfortable dark obsidian slate (`#13151A`, surfaces `#1A1D24` / `#1E222B`).
+  - Fixed light theme user bubbles to use soft slate (`bg-slate-100 border-slate-200`) instead of harsh black.
+  - Expanded conversation width to full-width canvas (`max-w-5xl`).
+  - Moved Alignment Progress Bar and "Skip & Build Anyway ⚡" inline below the prompt and response.
+  - Added one-click **Retry** button with zero credit deduction on failed API responses.
+  - Synchronized Gemini API key in `user_api_keys` and deployed `ai-proxy` v7 with atomic credit deduction strictly on 200 OK responses.
 - **AI Jargon Elimination & Single-Word Action Buttons (Rule 16)**:
   - Added strict project Rule 16 forbidding AI technical jargon (e.g. "multi-level execution graph", "DAG", "orchestration payload") in user-facing UI and messages.
   - Enforced single-word clean action buttons (e.g., "Cook", "Build", "Start", "Begin", "Submit").

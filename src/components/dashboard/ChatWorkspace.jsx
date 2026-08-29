@@ -45,7 +45,8 @@ import {
   Layers,
   Zap,
   MoreHorizontal,
-  SendHorizontal
+  SendHorizontal,
+  RotateCw,
 } from 'lucide-react';
 
 const MODE_ICONS = {
@@ -460,10 +461,26 @@ export default function ChatWorkspace({ onCreditDeducted }) {
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
+  const handleRetry = () => {
+    const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+    if (lastUserMsg) {
+      setErrorMessage('');
+      // Remove failed assistant message if present
+      setMessages(prev => {
+        const last = prev[prev.length - 1];
+        if (last && last.role === 'assistant') {
+          return prev.slice(0, -1);
+        }
+        return prev;
+      });
+      handleSendMessage(lastUserMsg.displayContent || lastUserMsg.content);
+    }
+  };
+
   const isInitialEmptyState = messages.length === 0;
 
   return (
-    <div className="relative flex h-full w-full flex-col overflow-y-auto bg-[#FAFAFA] dark:bg-[#0E0F12] transition-colors">
+    <div className="relative flex h-full w-full flex-col overflow-y-auto bg-[#F8F9FA] dark:bg-[#13151A] transition-colors">
       
       {/* Hidden File Input */}
       <input
@@ -475,55 +492,11 @@ export default function ChatWorkspace({ onCreditDeducted }) {
       />
 
       {/* =========================================================================
-          MOTHER AGENT ALIGNMENT PROGRESS BAR (Sticky top meter)
-          ========================================================================= */}
-      {!isInitialEmptyState && alignmentScore !== null && (
-        <div className="sticky top-0 z-20 w-full border-b border-slate-200/70 dark:border-zinc-800/80 bg-[#FAFAFA]/90 dark:bg-[#0E0F12]/90 backdrop-blur-md px-4 py-2.5 transition-all">
-          <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
-            {/* Left: Progress meter */}
-            <div className="flex items-center gap-2.5 min-w-[160px]">
-              <span className="text-[11px] font-medium text-slate-700 dark:text-zinc-300 whitespace-nowrap">
-                Alignment {alignmentScore}%
-              </span>
-              <div className="h-1.5 flex-1 max-w-[110px] rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-slate-800 to-slate-950 dark:from-zinc-300 dark:to-white transition-all duration-700 ease-out rounded-full"
-                  style={{ width: `${Math.min(100, Math.max(0, alignmentScore))}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Center: Current Branch Focus */}
-            {currentBranch && (
-              <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-zinc-400 truncate">
-                <span className="text-slate-400 dark:text-zinc-500">Focus:</span>
-                <span className="font-medium text-slate-700 dark:text-zinc-300 truncate">{currentBranch}</span>
-              </div>
-            )}
-
-            {/* Right: Skip & Build Anyway Button */}
-            {alignmentScore < 85 && (
-              <button
-                type="button"
-                onClick={() => handleSendMessage('Proceed immediately: synthesize and finalize the complete Vision and Plan with all available context.')}
-                disabled={isSending}
-                className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-600 dark:text-zinc-400 hover:text-slate-950 dark:hover:text-white transition-colors cursor-pointer disabled:opacity-50"
-                title="Bypass remaining questions and generate Vision immediately"
-              >
-                <Zap className="h-3 w-3 text-amber-500 fill-amber-500/20" />
-                <span>Skip & Build Anyway</span>
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* =========================================================================
           ACTIVE CONVERSATION STREAM (When messages exist)
           ========================================================================= */}
       {!isInitialEmptyState && (
-        <div className="relative z-10 flex-1 overflow-y-auto px-4 py-6 md:px-8">
-          <div className="max-w-3xl mx-auto space-y-6 pb-6">
+        <div className="relative z-10 flex-1 overflow-y-auto px-4 py-6 md:px-10">
+          <div className="max-w-5xl mx-auto space-y-6 pb-6">
             {messages.map((msg, idx) => {
               const isUser = msg.role === 'user';
               return (
@@ -532,26 +505,26 @@ export default function ChatWorkspace({ onCreditDeducted }) {
                   className={`flex gap-3.5 ${isUser ? 'justify-end' : 'justify-start'} animate-in fade-in duration-200`}
                 >
                   {!isUser && (
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 dark:bg-zinc-100 text-white dark:text-slate-900 font-semibold text-xs shadow-xs mt-0.5">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-800 dark:bg-zinc-700 text-white dark:text-zinc-100 font-semibold text-xs shadow-xs mt-0.5">
                       <Bot className="h-4 w-4" />
                     </div>
                   )}
 
-                  <div className={`flex flex-col space-y-1.5 max-w-[85%] sm:max-w-[75%] ${isUser ? 'items-end' : 'items-start'}`}>
+                  <div className={`flex flex-col space-y-1.5 max-w-[90%] sm:max-w-[85%] ${isUser ? 'items-end' : 'items-start'}`}>
                     <div
-                      className={`rounded-2xl px-4 py-3 text-xs sm:text-[13px] leading-relaxed shadow-xs ${
+                      className={`rounded-2xl px-5 py-3.5 text-xs sm:text-[13.5px] leading-relaxed shadow-xs transition-colors ${
                         isUser
-                          ? 'bg-slate-900 dark:bg-zinc-100 text-white dark:text-slate-900'
-                          : 'bg-white dark:bg-[#121316] text-slate-900 dark:text-zinc-100 border border-slate-200/80 dark:border-zinc-800'
+                          ? 'bg-slate-100 dark:bg-[#1E222B] text-slate-900 dark:text-zinc-100 border border-slate-200/80 dark:border-zinc-800'
+                          : 'bg-white dark:bg-[#1A1D24] text-slate-900 dark:text-zinc-100 border border-slate-200/70 dark:border-zinc-800/80'
                       }`}
                     >
                       {/* Attached files preview */}
                       {msg.attachments && msg.attachments.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mb-2 pb-2 border-b border-white/20 dark:border-zinc-700">
+                        <div className="flex flex-wrap gap-1.5 mb-2 pb-2 border-b border-slate-200 dark:border-zinc-700">
                           {msg.attachments.map((att, attIdx) => (
                             <span
                               key={attIdx}
-                              className="inline-flex items-center gap-1 rounded-md bg-black/10 dark:bg-white/10 px-2 py-0.5 text-[10.5px]"
+                              className="inline-flex items-center gap-1 rounded-md bg-slate-200/60 dark:bg-zinc-800 px-2 py-0.5 text-[10.5px] text-slate-700 dark:text-zinc-300"
                             >
                               <FileText className="h-3 w-3" />
                               <span className="truncate max-w-[120px]">{att.name}</span>
@@ -562,7 +535,7 @@ export default function ChatWorkspace({ onCreditDeducted }) {
 
                       {/* Mode Badge Tag in Chat */}
                       {msg.modeName && (
-                        <div className="inline-block rounded-md bg-slate-200/60 dark:bg-zinc-800 px-2 py-0.5 text-[10px] font-medium text-slate-700 dark:text-zinc-300 mb-1.5">
+                        <div className="inline-block rounded-md bg-slate-200/70 dark:bg-zinc-800/90 px-2 py-0.5 text-[10.5px] font-medium text-slate-700 dark:text-zinc-300 mb-1.5 border border-slate-200/80 dark:border-zinc-700/50">
                           Mode: {msg.modeName}
                         </div>
                       )}
@@ -602,7 +575,7 @@ export default function ChatWorkspace({ onCreditDeducted }) {
                   </div>
 
                   {isUser && (
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-800 dark:text-zinc-200 font-semibold text-xs mt-0.5">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-semibold text-xs mt-0.5 border border-slate-300/50 dark:border-zinc-700/50">
                       <User className="h-4 w-4" />
                     </div>
                   )}
@@ -612,20 +585,74 @@ export default function ChatWorkspace({ onCreditDeducted }) {
 
             {isSending && !messages[messages.length - 1]?.isStreaming && (
               <div className="flex items-center gap-3 animate-in fade-in">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 dark:bg-zinc-100 text-white dark:text-slate-900 text-xs">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-800 dark:bg-zinc-700 text-white dark:text-zinc-100 text-xs">
                   <Bot className="h-4 w-4" />
                 </div>
-                <div className="flex items-center gap-2 rounded-2xl bg-white dark:bg-[#121316] border border-slate-200/80 dark:border-zinc-800 px-4 py-2.5 text-xs text-slate-500 dark:text-zinc-400 shadow-xs">
+                <div className="flex items-center gap-2 rounded-2xl bg-white dark:bg-[#1A1D24] border border-slate-200/80 dark:border-zinc-800 px-4 py-2.5 text-xs text-slate-500 dark:text-zinc-400 shadow-xs">
                   <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-700 dark:text-zinc-300" />
                   <span>{selectedModel.name} is thinking...</span>
                 </div>
               </div>
             )}
 
+            {/* Error Display with Direct Retry Button */}
             {errorMessage && (
-              <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-50 dark:bg-red-950/40 p-3 text-xs text-red-700 dark:text-red-300 max-w-xl mx-auto">
-                <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
-                <span>{errorMessage}</span>
+              <div className="flex items-center justify-between gap-3 rounded-2xl border border-red-500/20 bg-red-50/80 dark:bg-red-950/30 p-4 text-xs text-red-700 dark:text-red-300 w-full animate-in fade-in">
+                <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                  <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
+                  <span className="truncate">{errorMessage}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRetry}
+                  disabled={isSending}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium text-xs shadow-xs transition-colors shrink-0 cursor-pointer disabled:opacity-50"
+                >
+                  <RotateCw className="h-3 w-3" />
+                  <span>Retry</span>
+                </button>
+              </div>
+            )}
+
+            {/* INLINE ALIGNMENT PROGRESS BAR (Shown below user prompt & response) */}
+            {alignmentScore !== null && (
+              <div className="w-full rounded-2xl border border-slate-200/80 dark:border-zinc-800/80 bg-white/70 dark:bg-[#1A1D24]/70 backdrop-blur-xs px-5 py-3 shadow-2xs transition-all animate-in fade-in">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                  {/* Left: Progress meter */}
+                  <div className="flex items-center gap-3 w-full sm:w-auto min-w-[200px]">
+                    <span className="text-xs font-medium text-slate-700 dark:text-zinc-300 whitespace-nowrap">
+                      Alignment {alignmentScore}%
+                    </span>
+                    <div className="h-1.5 flex-1 max-w-[140px] rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-slate-700 to-slate-900 dark:from-zinc-300 dark:to-white transition-all duration-700 ease-out rounded-full"
+                        style={{ width: `${Math.min(100, Math.max(0, alignmentScore))}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Center: Current Focus */}
+                  {currentBranch && (
+                    <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-zinc-400 truncate">
+                      <span className="text-slate-400 dark:text-zinc-500">Focus:</span>
+                      <span className="font-medium text-slate-700 dark:text-zinc-300 truncate">{currentBranch}</span>
+                    </div>
+                  )}
+
+                  {/* Right: Skip & Build Anyway Button */}
+                  {alignmentScore < 85 && (
+                    <button
+                      type="button"
+                      onClick={() => handleSendMessage('Proceed immediately: synthesize and finalize the complete Vision and Plan with all available context.')}
+                      disabled={isSending}
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-zinc-400 hover:text-slate-950 dark:hover:text-white transition-colors cursor-pointer disabled:opacity-50 ml-auto sm:ml-0"
+                      title="Bypass remaining questions and generate Vision immediately"
+                    >
+                      <Zap className="h-3.5 w-3.5 text-amber-500 fill-amber-500/20" />
+                      <span>Skip & Build Anyway</span>
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 
@@ -662,10 +689,10 @@ export default function ChatWorkspace({ onCreditDeducted }) {
           CENTER HERO & PROMPT COMPOSER
           ========================================================================= */}
       <div
-        className={`relative z-20 flex w-full max-w-2xl flex-col mx-auto px-4 md:px-6 transition-all duration-300 ${
+        className={`relative z-20 flex w-full flex-col mx-auto px-4 md:px-8 transition-all duration-300 ${
           isInitialEmptyState
-            ? 'flex-1 items-center justify-center my-auto py-8'
-            : 'shrink-0 pb-6'
+            ? 'max-w-2xl flex-1 items-center justify-center my-auto py-8'
+            : 'max-w-4xl shrink-0 pb-6'
         }`}
       >
         
