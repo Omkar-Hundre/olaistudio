@@ -28,10 +28,11 @@ import { optimizeMessagesForContextWindow, calculateTokenBudget } from '../utils
 export async function sendProxyChatMessage({
   messages,
   provider = 'gemini',
-  model = 'gemini-2.5-flash',
+  model = 'gemini-2.0-flash',
   systemPrompt = '',
   globalContext = '',
   parentContext = '',
+  isPlatform = true,
 }) {
   try {
     const tokenReport = calculateTokenBudget({
@@ -63,6 +64,7 @@ export async function sendProxyChatMessage({
         globalContext,
         parentContext,
         stream: false,
+        isPlatform,
       },
     });
 
@@ -99,10 +101,11 @@ export async function sendProxyChatMessage({
  * @param {Object} params
  * @param {Array<{ role: string, content: string }>} params.messages
  * @param {string} [params.provider='gemini']
- * @param {string} [params.model='gemini-2.5-flash']
+ * @param {string} [params.model='gemini-2.0-flash']
  * @param {string} [params.systemPrompt='']
  * @param {string} [params.globalContext='']
  * @param {string} [params.parentContext='']
+ * @param {boolean} [params.isPlatform=true]
  * @param {Function} params.onChunk - Callback invoked with `(deltaText, accumulatedFullText)`
  * @param {Function} [params.onDone] - Callback invoked when streaming completes `({ fullText, creditsRemaining })`
  * @param {Function} [params.onError] - Callback invoked on failure `(errorMessage)`
@@ -111,10 +114,11 @@ export async function sendProxyChatMessage({
 export async function sendStreamingProxyChatMessage({
   messages,
   provider = 'gemini',
-  model = 'gemini-2.5-flash',
+  model = 'gemini-2.0-flash',
   systemPrompt = '',
   globalContext = '',
   parentContext = '',
+  isPlatform = true,
   onChunk = () => {},
   onDone = () => {},
   onError = () => {},
@@ -152,6 +156,7 @@ export async function sendStreamingProxyChatMessage({
         globalContext,
         parentContext,
         stream: true,
+        isPlatform,
       }),
     });
 

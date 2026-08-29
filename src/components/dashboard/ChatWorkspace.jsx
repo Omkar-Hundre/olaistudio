@@ -472,6 +472,7 @@ export default function ChatWorkspace({
         systemPrompt: activeMode?.systemPrompt || '',
         globalContext: visionContent ? `[Current Project Vision & Approved Plan]\n${visionContent}` : `[Project Focus]: ${sessionTitle || 'New Project'}`,
         parentContext: currentBranch ? `[Current Focus Area]: ${currentBranch} (Alignment: ${alignmentScore || 35}%)` : '',
+        isPlatform: selectedModel.isPlatform !== false,
         onChunk: (_delta, accumulatedFullText) => {
           if (!firstChunkTime) {
             firstChunkTime = performance.now();
@@ -525,7 +526,7 @@ export default function ChatWorkspace({
             modelName: selectedModel.name,
             timestamp: new Date().toISOString(),
             durationMs: Math.round(doneTime - startTime),
-            rawThinkingContent: commands?.greeting ? `Analyzed scope for "${commands.suggested_title || 'Project'}" with ${commands.questions?.length || 0} questions ready.` : '',
+            rawThinkingContent: fullContent,
             isStreaming: false,
           };
 
@@ -746,11 +747,16 @@ export default function ChatWorkspace({
                         </div>
                       )}
 
-                      {/* Thinking gradient animation — shows while streaming */}
+                      {/* Live Thinking State while Streaming */}
                       {!isUser && msg.isStreaming && (
-                        <div className="w-full">
+                        <div className="w-full space-y-2.5">
+                          <div className="flex items-center gap-2 text-xs font-medium text-slate-800 dark:text-zinc-200">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-700 dark:text-zinc-300" />
+                            <span>Thinking through project parameters...</span>
+                          </div>
+
                           {/* Gradient shimmer bar */}
-                          <div className="relative h-1 rounded-full overflow-hidden mb-3 bg-slate-100 dark:bg-zinc-800">
+                          <div className="relative h-1 rounded-full overflow-hidden bg-slate-100 dark:bg-zinc-800">
                             <div
                               className="absolute inset-y-0 left-0 w-1/2 rounded-full"
                               style={{
@@ -759,36 +765,38 @@ export default function ChatWorkspace({
                               }}
                             />
                           </div>
-                          {/* Live text preview */}
-                          <p className="whitespace-pre-wrap text-slate-700 dark:text-zinc-300 text-xs leading-relaxed">
-                            {msg.displayContent || (
-                              <span className="text-slate-400 dark:text-zinc-500 italic">Thinking...</span>
-                            )}
-                          </p>
+
+                          {/* Live Collapsible Stream Preview Dropdown */}
+                          <details className="group" open>
+                            <summary className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200 cursor-pointer select-none list-none py-0.5">
+                              <Sparkles className="h-3 w-3 text-violet-500" />
+                              <span className="font-medium">Live model reasoning</span>
+                              <ChevronDown className="h-3 w-3 transition-transform duration-200 group-open:rotate-180 ml-0.5" />
+                            </summary>
+                            <div className="mt-1.5 pl-3 border-l-2 border-violet-400 dark:border-violet-600 font-mono text-[11px] text-slate-600 dark:text-zinc-400 bg-slate-50/80 dark:bg-zinc-900/60 rounded-r-lg p-2.5 max-h-[160px] overflow-y-auto leading-relaxed whitespace-pre-wrap">
+                              {msg.displayContent || 'Generating response structure...'}
+                            </div>
+                          </details>
                         </div>
                       )}
 
                       {/* Completed response */}
                       {(!isUser || isUser) && !msg.isStreaming && (
                         <>
-                          {/* Timing dropdown — shown for any completed AI message */}
+                          {/* Completed Thinking Dropdown — auto-closed upon completion */}
                           {!isUser && (
-                            <details className="mb-2 group" open={false}>
-                              <summary className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300 cursor-pointer select-none list-none mb-1.5">
-                                <Sparkles className="h-3 w-3 text-violet-400" />
+                            <details className="mb-2.5 group">
+                              <summary className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200 cursor-pointer select-none list-none py-0.5">
+                                <Sparkles className="h-3 w-3 text-amber-500" />
                                 <span>
                                   {msg.durationMs
-                                    ? `Completed in ${(msg.durationMs / 1000).toFixed(1)}s`
-                                    : 'View details'}
+                                    ? `Thought for ${(msg.durationMs / 1000).toFixed(1)}s`
+                                    : 'Thinking details'}
                                 </span>
                                 <ChevronDown className="h-3 w-3 transition-transform duration-200 group-open:rotate-180 ml-0.5" />
                               </summary>
-                              <div className="pl-3 border-l-2 border-violet-200 dark:border-violet-900/60 text-[11px] text-slate-500 dark:text-zinc-400 leading-relaxed py-1">
-                                {msg.rawThinkingContent
-                                  ? msg.rawThinkingContent
-                                  : msg.durationMs
-                                  ? `Response generated in ${Math.round(msg.durationMs)}ms`
-                                  : 'Loaded from session history'}
+                              <div className="mt-1.5 pl-3 border-l-2 border-amber-400/80 dark:border-amber-500/70 font-mono text-[11px] text-slate-600 dark:text-zinc-400 bg-slate-50/70 dark:bg-zinc-900/50 rounded-r-lg p-2.5 max-h-[220px] overflow-y-auto leading-relaxed whitespace-pre-wrap">
+                                {msg.rawThinkingContent || msg.content || 'Reasoning completed.'}
                               </div>
                             </details>
                           )}

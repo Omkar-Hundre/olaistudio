@@ -10,9 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.10.0] - 2026-08-29
 
 ### Added
-- **Unbuffered Instant SSE Streaming & Deployed AI Proxy v10 (`ai-proxy/index.ts`)**:
-  - Removed internal `response_mime_type: "application/json"` from Gemini upstream requests to eliminate the 120-second buffering delay and achieve sub-second TTFT (~500ms).
-  - Deployed `ai-proxy` v10 with JWT authentication context, allowing `deduct_user_credits` RPC to accurately resolve `auth.uid()` and atomically deduct platform credits.
+- **Sub-Second Latency Optimization & Deployed AI Proxy v11 (`ai-proxy/index.ts`, `platform_models`)**:
+  - Identified and resolved 150-second latency bottleneck by migrating default `Olai M1` model in `public.platform_models` to `gemini-2.0-flash` (TTFT < 800ms).
+  - Deployed `ai-proxy` v11 with explicit `isPlatform` model routing, ensuring system model `Olai M1` consistently uses platform credits even when custom keys are stored in Settings.
+- **Collapsible Thinking Dropdown Component (`ChatWorkspace.jsx`)**:
+  - Built real-time thinking dropdown open during streaming with live reasoning updates, and cleanly collapsed upon completion (`✦ Thought for Xs ▾`).
+  - Stored full raw reasoning payload in `rawThinkingContent` for transparent inspection.
 - **Three-Level Memory Architecture & Dynamic Context Delivery (`ChatWorkspace.jsx`, `aiProxyService.js`)**:
   - Wired Level 1 (live message turns), Level 2 (root node conversation history & hidden commands), and Level 3 (project vision, branch focus, and confidence scores).
   - Provided `globalContext` and `parentContext` dynamically to the AI proxy on all turns.
