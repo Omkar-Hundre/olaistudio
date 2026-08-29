@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.9.0] - 2026-08-29
+
+### Changed
+- **General-Purpose Developer Templates**:
+  - Replaced niche template cards with general, high-value coding and reasoning tasks: *Refactor Code*, *Brainstorm Logic*, *Database Schema*, *Explain Concepts*, *Write Unit Tests*, and *API Integration*.
+- **Vertical Alignment Alignment**:
+  - Pushed prompt placeholder layout down (`top-[3px]`) and positioned Sparkles symbol at `mt-[3.5px]` to achieve perfect baseline centering with textarea input.
+
+---
+
 ## [2.8.0] - 2026-08-29
 
 ### Changed
