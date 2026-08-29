@@ -210,12 +210,24 @@ Deno.serve(async (req) => {
           };
         }
 
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${activeApiKey}`;
-        const upstreamRes = await fetch(geminiUrl, {
+        let activeModel = model;
+        let geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:streamGenerateContent?alt=sse&key=${activeApiKey}`;
+        let upstreamRes = await fetch(geminiUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(requestBody),
         });
+
+        // Resilient quota failover: if primary model is 429'd or 404, fallback to gemini-flash-latest
+        if (!upstreamRes.ok && upstreamRes.status === 429 && activeModel !== "gemini-flash-latest") {
+          activeModel = "gemini-flash-latest";
+          geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:streamGenerateContent?alt=sse&key=${activeApiKey}`;
+          upstreamRes = await fetch(geminiUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody),
+          });
+        }
 
         if (!upstreamRes.ok) {
           const err = await upstreamRes.text();
@@ -452,12 +464,23 @@ Deno.serve(async (req) => {
         };
       }
 
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeApiKey}`;
-      const geminiRes = await fetch(geminiUrl, {
+      let activeModel = model;
+      let geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${activeApiKey}`;
+      let geminiRes = await fetch(geminiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody),
       });
+
+      if (!geminiRes.ok && geminiRes.status === 429 && activeModel !== "gemini-flash-latest") {
+        activeModel = "gemini-flash-latest";
+        geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${activeApiKey}`;
+        geminiRes = await fetch(geminiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody),
+        });
+      }
 
       if (!geminiRes.ok) {
         const err = await geminiRes.text();
