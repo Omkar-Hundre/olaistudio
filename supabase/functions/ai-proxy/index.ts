@@ -74,24 +74,38 @@ Deno.serve(async (req) => {
     let activeApiKey = "";
     let isUserCustomKey = false;
 
-    if (provider === "openai" && customKeys?.openai_key) {
-      activeApiKey = customKeys.openai_key;
-      isUserCustomKey = true;
-    } else if (provider === "claude" && customKeys?.claude_key) {
-      activeApiKey = customKeys.claude_key;
-      isUserCustomKey = true;
-    } else if (provider === "gemini" && customKeys?.gemini_key) {
-      activeApiKey = customKeys.gemini_key;
-      isUserCustomKey = true;
+    // Only use custom API key if user explicitly chose a BYOK model (isPlatform is false)
+    if (!isPlatform) {
+      if (provider === "openai" && customKeys?.openai_key) {
+        activeApiKey = customKeys.openai_key;
+        isUserCustomKey = true;
+      } else if (provider === "claude" && customKeys?.claude_key) {
+        activeApiKey = customKeys.claude_key;
+        isUserCustomKey = true;
+      } else if (provider === "gemini" && customKeys?.gemini_key) {
+        activeApiKey = customKeys.gemini_key;
+        isUserCustomKey = true;
+      }
     }
 
     // Check balance if platform credit will be used
     if (!isUserCustomKey) {
-      const { data: creditRow } = await supabaseClient
+      let { data: creditRow } = await supabaseClient
         .from("user_credits")
         .select("balance")
         .eq("user_id", user.id)
         .maybeSingle();
+
+      if (!creditRow) {
+        // Auto-initialize default credits if record missing
+        await supabaseClient.rpc("initialize_user_credits", { p_user_id: user.id });
+        const { data: freshRow } = await supabaseClient
+          .from("user_credits")
+          .select("balance")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        creditRow = freshRow;
+      }
 
       const balance = creditRow?.balance ?? 0;
       if (balance <= 0) {
@@ -214,7 +228,10 @@ Deno.serve(async (req) => {
         // Deduct credit only after upstream call is verified 200 OK
         let remainingBalance = 100;
         if (!isUserCustomKey) {
-          const { data: deductResult } = await supabaseClient.rpc("deduct_user_credits", { p_amount: 1 });
+          const { data: deductResult } = await supabaseClient.rpc("deduct_user_credits", {
+            p_amount: 1,
+            p_user_id: user.id,
+          });
           if (deductResult?.balance !== undefined) {
             remainingBalance = deductResult.balance;
           }
@@ -305,7 +322,10 @@ Deno.serve(async (req) => {
 
         let remainingBalance = 100;
         if (!isUserCustomKey) {
-          const { data: deductResult } = await supabaseClient.rpc("deduct_user_credits", { p_amount: 1 });
+          const { data: deductResult } = await supabaseClient.rpc("deduct_user_credits", {
+            p_amount: 1,
+            p_user_id: user.id,
+          });
           if (deductResult?.balance !== undefined) {
             remainingBalance = deductResult.balance;
           }
@@ -484,7 +504,10 @@ Deno.serve(async (req) => {
     // Deduct credit only on verified 200 OK response
     let remainingBalance = 100;
     if (!isUserCustomKey) {
-      const { data: deductResult } = await supabaseClient.rpc("deduct_user_credits", { p_amount: 1 });
+      const { data: deductResult } = await supabaseClient.rpc("deduct_user_credits", {
+        p_amount: 1,
+        p_user_id: user.id,
+      });
       if (deductResult?.balance !== undefined) {
         remainingBalance = deductResult.balance;
       }
