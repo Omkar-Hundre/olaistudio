@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.11.0] - 2026-09-17
 
+- **Direct Conversational Chat & Complication Removal (`ChatWorkspace.jsx`, `workspaceModeService.js`, `workspace_modes`)**:
+  - Removed `QuestionnaireCard` and `VisionCard` premature plan creation complications, transitioning the workspace into a direct, conversational AI chat experience (like ChatGPT).
+  - Streamlined system prompts across all modes to focus on natural dialogue, directly asking clarifying questions about the user's project inside conversational replies.
+  - Eliminated complex 2-step state machines, premature plan triggers, and brittle regex parsing, ensuring responses start streaming immediately with minimal latency.
+  - Synchronized updated conversational system prompts across all 4 modes in Supabase `public.workspace_modes`.
+
 - **150.9s Latency Resolution & Master Plan Depth Upgrade (`workspaceModeService.js`, `ChatWorkspace.jsx`, `systemCommandParser.js`, `aiProxyService.js`)**:
   - Eliminated the 150.9s response freeze by harmonizing system prompts with Gemini API JSON schemas, strictly banning runaway source code loops and enforcing immediate completion upon Master Plan synthesis.
   - Upgraded Master Plan depth with mandatory structured Markdown tables (Design System Tokens, Wireframe Specifications, Data Schema Models, Phasing Roadmaps) and ASCII component trees.

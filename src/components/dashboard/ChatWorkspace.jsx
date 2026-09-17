@@ -25,8 +25,6 @@ import { uploadFilesSecurely } from '../../services/s3Service';
 import { parseSystemCommands, cleanSuggestedTitle, extractJsonStringField } from '../../utils/systemCommandParser';
 import { createWorkflowSession, updateWorkflowSession, getWorkflowSession, saveRootSessionState } from '../../services/workflowService';
 import { supabase } from '../../lib/supabase';
-import QuestionnaireCard from './QuestionnaireCard';
-import VisionCard from './VisionCard';
 import DevPayloadInspector from './DevPayloadInspector';
 import MarkdownRenderer from '../ui/MarkdownRenderer';
 import {
@@ -518,8 +516,8 @@ export default function ChatWorkspace({
         provider: selectedModel.provider,
         model: selectedModel.rawModel,
         systemPrompt: activeMode?.systemPrompt || '',
-        globalContext: visionContent ? `[Current Project Vision & Approved Plan]\n${visionContent}` : `[Project Focus]: ${cleanFocusTitle}`,
-        parentContext: currentBranch ? `[Current Focus Area]: ${cleanBranch} (Alignment: ${alignmentScore || 35}%)` : '',
+        globalContext: '',
+        parentContext: '',
         isPlatform: selectedModel.isPlatform !== false,
         responseFormat: 'text',
         onChunk: (_delta, accumulatedFullText) => {
@@ -530,53 +528,14 @@ export default function ChatWorkspace({
 
           let cleanStreamingText = '';
 
-          // 1. Direct JSON streaming via robust unescaped string extractor
+          // Direct JSON extraction if payload is formatted as {"greeting": "..."}
           const greetingText = extractJsonStringField(accumulatedFullText, 'greeting');
-          const planText = extractJsonStringField(accumulatedFullText, 'plan_markdown');
-
-          if (greetingText || planText) {
-            cleanStreamingText = planText
-              ? (greetingText ? `${greetingText}\n\n---\n\n${planText}` : planText)
-              : greetingText;
-
-            // Live metadata extraction during stream
-            const scoreMatch = accumulatedFullText.match(/"confidence_score"\s*:\s*(\d+)/i);
-            if (scoreMatch) {
-              const liveScore = parseInt(scoreMatch[1], 10);
-              if (liveScore > (alignmentScore || 0)) {
-                setAlignmentScore(liveScore);
-              }
-            }
-
-            const branchText = extractJsonStringField(accumulatedFullText, 'current_branch');
-            if (branchText && branchText !== currentBranch) {
-              setCurrentBranch(branchText);
-            }
-
-            const liveTitle = extractJsonStringField(accumulatedFullText, 'suggested_title');
-            if (liveTitle && !sessionTitle.includes(liveTitle)) {
-              const cleaned = cleanSuggestedTitle(liveTitle);
-              if (cleaned) setSessionTitle(cleaned);
-            }
-
-            // Real-time Master Plan update in Vision Card
-            const isReadyForVision = accumulatedFullText.includes('"ready_for_vision": true') ||
-              (scoreMatch && parseInt(scoreMatch[1], 10) >= 95);
-
-            if (planText && planText.length > 50 && isReadyForVision) {
-              setVisionContent(planText);
-            }
-          } else if (accumulatedFullText.includes('</meta>')) {
-            // 2. Meta tag format fallback
-            cleanStreamingText = accumulatedFullText.replace(/<meta>[\s\S]*?<\/meta>/i, '').trim();
-          } else if (accumulatedFullText.includes('%%%SYSTEM_CMD%%%')) {
-            // 3. Legacy tag format fallback
-            cleanStreamingText = accumulatedFullText.replace(/%%%SYSTEM_CMD%%%[\s\S]*$/, '').trim();
+          if (greetingText) {
+            cleanStreamingText = greetingText;
           } else if (accumulatedFullText.trimStart().startsWith('{')) {
-            // JSON structure is still opening its first key
             cleanStreamingText = '';
           } else {
-            // Plain text stream
+            // Pure markdown/plain text stream
             cleanStreamingText = accumulatedFullText;
           }
 
@@ -597,24 +556,28 @@ export default function ChatWorkspace({
           console.log(`[AI Performance] 🏁 Stream Completed in: ${Math.round(doneTime - startTime)}ms`);
 
           setIsSending(false);
-          const parseStart = performance.now();
-          const { cleanText, commands } = parseSystemCommands(fullText);
-          const parseEnd = performance.now();
-          console.log(`[AI Performance] 🎯 Modal Parsed in: ${(parseEnd - parseStart).toFixed(2)}ms`);
 
-          const fullContent = fullText
-            .replace(/<meta>[\s\S]*?<\/meta>/i, '')
-            .replace(/%%%SYSTEM_CMD%%%[\s\S]*$/, '')
-            .trim();
+          let cleanText = extractJsonStringField(fullText, 'greeting');
+          if (!cleanText) {
+            const { cleanText: parsed } = parseSystemCommands(fullText);
+            cleanText = parsed || fullText;
+          }
+
+          const suggestedTitle = extractJsonStringField(fullText, 'suggested_title');
+          const fallbackTitle = (rawText || '').split('\n')[0].slice(0, 42).trim() || 'Chat Session';
+          const finalTitle = cleanSuggestedTitle(suggestedTitle) || (sessionTitle && sessionTitle !== 'New Session' && sessionTitle !== 'New Conversation' ? sessionTitle : fallbackTitle);
+          setSessionTitle(finalTitle);
+          if (activeSessionId) {
+            updateWorkflowSession(activeSessionId, { title: finalTitle });
+          }
 
           const finalAssistantMessage = {
             role: 'assistant',
-            content: fullContent,
-            displayContent: cleanText,
+            content: fullText,
+            displayContent: cleanText.trim(),
             modelName: selectedModel.name,
             timestamp: new Date().toISOString(),
             durationMs: Math.round(doneTime - startTime),
-            rawThinkingContent: fullContent,
             isStreaming: false,
           };
 
@@ -626,79 +589,11 @@ export default function ChatWorkspace({
             return next;
           });
 
-          let targetScore = alignmentScore || 35;
-          let targetBranch = currentBranch;
-          let targetQuestions = [];
-          let targetVision = visionContent;
-          let targetCta = ctaLabel;
-
-          if (commands) {
-            if (commands.confidence_score !== undefined) {
-              targetScore = commands.confidence_score;
-              setAlignmentScore(commands.confidence_score);
-              if (activeSessionId) {
-                updateWorkflowSession(activeSessionId, { confidence_score: commands.confidence_score });
-              }
-            }
-            if (commands.current_branch) {
-              targetBranch = commands.current_branch;
-              setCurrentBranch(commands.current_branch);
-            }
-            
-            const isChoiceSubmission = (rawText || '').startsWith('Here are my choices:');
-            const fallbackTitle = !isChoiceSubmission 
-              ? ((rawText || '').split('\n')[0].slice(0, 42).trim() || 'Project Chat')
-              : 'Project Architecture';
-            const finalTitle = commands?.suggested_title || (sessionTitle && sessionTitle !== 'New Session' && sessionTitle !== 'New Conversation' && !sessionTitle.startsWith('Here are my choices:') ? sessionTitle : fallbackTitle);
-            setSessionTitle(finalTitle);
-            if (activeSessionId) {
-              updateWorkflowSession(activeSessionId, { title: finalTitle });
-            }
-
-            if (commands.questions && Array.isArray(commands.questions) && commands.questions.length > 0) {
-              targetQuestions = commands.questions;
-              setActiveQuestions(commands.questions);
-            } else {
-              setActiveQuestions([]);
-            }
-            if (commands.ready_for_vision || (commands.confidence_score !== undefined && commands.confidence_score >= 95)) {
-              // Guard: Only update targetVision if we have a substantial plan (not a 1-sentence statement)
-              const candidatePlan = commands.plan_markdown || (cleanText && cleanText.length > 200 ? cleanText : '');
-              if (candidatePlan && (candidatePlan.length > 100 || !visionContent)) {
-                targetVision = candidatePlan;
-                setVisionContent(targetVision);
-              }
-              setActiveQuestions([]);
-              if (commands.cta_label) {
-                targetCta = commands.cta_label;
-                setCtaLabel(commands.cta_label);
-              }
-              if (activeSessionId && targetVision) {
-                updateWorkflowSession(activeSessionId, {
-                  vision_content: targetVision,
-                  status: 'vision_ready',
-                  confidence_score: Math.max(95, commands.confidence_score || 95),
-                });
-              }
-            }
-          } else {
-            const fallbackTitle = (rawText || '').split('\n')[0].slice(0, 42).trim() || 'Project Chat';
-            setSessionTitle(fallbackTitle);
-            if (activeSessionId) {
-              updateWorkflowSession(activeSessionId, { title: fallbackTitle });
-            }
-          }
-
-          // Persist root node turn and conversation history to Supabase
+          // Persist conversation history to Supabase
           if (activeSessionId) {
             saveRootSessionState({
               sessionId: activeSessionId,
               messages: [...updatedHistory, finalAssistantMessage],
-              confidenceScore: targetScore,
-              currentBranch: targetBranch,
-              visionContent: targetVision,
-              questions: targetQuestions,
-              ctaLabel: targetCta,
             });
 
             if (onSessionCreated) {
@@ -997,42 +892,6 @@ export default function ChatWorkspace({
                 </button>
               </div>
             )}
-
-            {/* Active Questionnaire Card with Integrated Alignment Meter, Skip Button & Simplify Action */}
-            {activeQuestions && activeQuestions.length > 0 && !isSending && (
-              <QuestionnaireCard
-                questions={activeQuestions}
-                alignmentScore={alignmentScore ?? 35}
-                currentBranch={currentBranch}
-                onSkip={() => handleSendMessage('Proceed immediately: finalize and generate the complete plan with all current context.')}
-                onSimplify={() => {
-                  const currentQuestionsText = activeQuestions
-                    .map((q, i) => `${i + 1}. ${q.question}\nOptions: ${(q.options || []).join(', ')}`)
-                    .join('\n\n');
-                  handleSendMessage(
-                    `I did not understand the previous options:\n\n${currentQuestionsText}\n\nPlease ask these exact questions again using simpler, plain English terms, and provide beginner-friendly, non-technical choices.`,
-                    "I didn't understand the previous options. Please explain them in simpler terms."
-                  );
-                }}
-                onSubmit={(clarificationsPayload) => {
-                  setActiveQuestions([]);
-                  handleSendMessage(clarificationsPayload);
-                }}
-                isSending={isSending}
-              />
-            )}
-
-            {/* Synthesized Master Vision Card */}
-            {visionContent && (
-              <VisionCard
-                visionContent={visionContent}
-                ctaLabel={ctaLabel}
-                onProceed={handleProceedExecution}
-                onUpdatePlan={handleUpdatePlan}
-                isExecuting={isExecuting}
-              />
-            )}
-
             <div ref={messagesEndRef} />
           </div>
         </div>
