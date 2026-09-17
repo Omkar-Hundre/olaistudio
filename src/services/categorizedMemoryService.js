@@ -58,25 +58,16 @@ export function buildCategorizedMemory({
     : `  • No locked architectural constraints yet. Actively refining scope.`;
 
   const visionSummary = visionContent
-    ? visionContent.slice(0, 1000) + (visionContent.length > 1000 ? '\n[...continued in VisionCard]' : '')
-    : `Master Plan pending synthesis (unlocks automatically when alignment >= 85%).`;
+    ? visionContent.slice(0, 500) + (visionContent.length > 500 ? '...' : '')
+    : `Master Plan pending synthesis (unlocks at alignment >= 95%).`;
 
-  const narrative = `### 1. PROJECT GOAL & STRATEGIC VISION
-${projectGoal}
+  const narrative = `[Project]: ${sessionTitle || 'New Project'} (Alignment: ${confidenceScore}%)
+[Active Focus]: ${currentBranch || 'Core Architecture & Strategy'}
+[Key Decisions]: ${decisionsSummary}
+[Plan Status]: ${visionSummary}`;
 
-### 2. ACTIVE FOCUS & EXECUTION BRANCH
-${branchSummary}
-
-### 3. RECORDED ARCHITECTURAL DECISIONS & SCOPE
-${decisionsSummary}
-
-### 4. CURRENT MASTER PLAN STATUS
-${visionSummary}`;
-
-  // 3. Format Level 2 Node Context (for workflow_nodes.input_context)
-  const nodeContext = `[PROJECT SCOPE]: ${sessionTitle || 'New Project'}
-[CURRENT BRANCH]: ${currentBranch || 'Core Architecture'} (Alignment: ${confidenceScore}%)
-[DECISION HIGHLIGHTS]:
+  // 3. Format Level 2 Node Context
+  const nodeContext = `[PROJECT SCOPE]: ${sessionTitle || 'New Project'} | Focus: ${currentBranch || 'Core Architecture'} (${confidenceScore}%)
 ${decisionsSummary}`;
 
   return {

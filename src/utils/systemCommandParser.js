@@ -2,220 +2,85 @@
  * ==============================================================================
  * System Command & Structured Response Parser
  * ==============================================================================
- * High-performance parser that:
- * 1. Supports deterministic Pure JSON payloads from AI modes
- * 2. Rapidly extracts markdown questions and options (Option 1, Choice A, A:, 1., etc.)
- * 3. Strips question lists from completed assistant chat bubbles so the modal renders cleanly
+ * High-performance, lightweight parser supporting:
+ * 1. Plain Markdown with closing <meta> JSON block:
+ *    [Conversational Response in Markdown]
+ *    <meta>{ "confidence_score": 35, "questions": [...] }</meta>
+ * 2. Pure JSON payloads with conversational "greeting"
+ * 3. Legacy %%%SYSTEM_CMD%%% blocks for backwards compatibility
  * ==============================================================================
  */
 
 /**
- * Robust JSON cleanser and extractor
+ * Resilient JSON parser that handles code fences and minor JSON quirks
  * @param {string} raw 
  * @returns {Object | null}
  */
 export function safeJsonParse(raw) {
   if (!raw || typeof raw !== 'string') return null;
 
-  // 1. Clean markdown code fences and whitespace
-  let clean = raw.trim()
+  const clean = raw.trim()
     .replace(/^```(?:json)?\s*/i, '')
     .replace(/\s*```$/, '')
     .trim();
 
-  // 2. Direct JSON parse
   try {
     return JSON.parse(clean);
   } catch {}
 
-  // 3. Remove trailing commas before closing braces/brackets and fix unescaped newlines in JSON strings
+  // Remove trailing commas and sanitize control characters
   try {
-    const fixedTrailingCommas = clean
+    const fixed = clean
       .replace(/,\s*([\]}])/g, '$1')
       .replace(/[\u0000-\u001F\u007F-\u009F]/g, (c) => (c === '\n' || c === '\r' || c === '\t' ? c : ''));
-    return JSON.parse(fixedTrailingCommas);
+    return JSON.parse(fixed);
   } catch {}
 
-  // 4. Try escaping unescaped newlines inside JSON string literals
+  // Regex field extraction fallback
   try {
-    const fixedNewlines = clean.replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/gs, (match) => {
-      return match.replace(/\r?\n/g, '\\n').replace(/\t/g, '\\t');
-    });
-    return JSON.parse(fixedNewlines);
-  } catch {}
-
-  // 5. Regex extraction fallback
-  try {
-    const extracted = {};
-
-    const greetingMatch = clean.match(/"greeting"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
-    if (greetingMatch) {
-      try {
-        extracted.greeting = JSON.parse(`"${greetingMatch[1]}"`);
-      } catch {
-        extracted.greeting = greetingMatch[1];
-      }
-    }
-
-    const titleMatch = clean.match(/"suggested_title"\s*:\s*"([^"]+)"/);
-    if (titleMatch) extracted.suggested_title = titleMatch[1];
-
-    const confMatch = clean.match(/"confidence_score"\s*:\s*(\d+)/);
-    if (confMatch) extracted.confidence_score = parseInt(confMatch[1], 10);
-
-    const branchMatch = clean.match(/"current_branch"\s*:\s*"([^"]+)"/);
-    if (branchMatch) extracted.current_branch = branchMatch[1];
-
-    const ctaMatch = clean.match(/"cta_label"\s*:\s*"([^"]+)"/);
-    if (ctaMatch) extracted.cta_label = ctaMatch[1];
-
-    const readyMatch = clean.match(/"ready_for_vision"\s*:\s*(true|false)/i);
-    if (readyMatch) extracted.ready_for_vision = readyMatch[1].toLowerCase() === 'true';
-
-    // Resilient plan_markdown extractor (handles multi-line, escaped/unescaped)
-    const planMatch = clean.match(/"plan_markdown"\s*:\s*"([\s\S]*?)"\s*(?:,\s*"[a-zA-Z_]+"|\s*})/);
-    if (planMatch) {
-      try {
-        extracted.plan_markdown = JSON.parse(`"${planMatch[1].replace(/\r?\n/g, '\\n')}"`);
-      } catch {
-        extracted.plan_markdown = planMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
-      }
-    } else {
-      // Fallback for plan_markdown if standard match misses
-      const altPlanMatch = clean.match(/"plan_markdown"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
-      if (altPlanMatch) {
-        try {
-          extracted.plan_markdown = JSON.parse(`"${altPlanMatch[1]}"`);
-        } catch {
-          extracted.plan_markdown = altPlanMatch[1];
+    const result = {};
+    const extractField = (key, isInt = false, isBool = false) => {
+      if (isInt) {
+        const m = clean.match(new RegExp(`"${key}"\\s*:\\s*(\\d+)`));
+        if (m) result[key] = parseInt(m[1], 10);
+      } else if (isBool) {
+        const m = clean.match(new RegExp(`"${key}"\\s*:\\s*(true|false)`, 'i'));
+        if (m) result[key] = m[1].toLowerCase() === 'true';
+      } else {
+        const m = clean.match(new RegExp(`"${key}"\\s*:\\s*"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"`));
+        if (m) {
+          try {
+            result[key] = JSON.parse(`"${m[1]}"`);
+          } catch {
+            result[key] = m[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
+          }
         }
       }
-    }
+    };
 
-    const questionsBlockMatch = clean.match(/"questions"\s*:\s*(\[[\s\S]*?\])\s*(?:,|}|\n)/);
-    if (questionsBlockMatch) {
+    extractField('greeting');
+    extractField('suggested_title');
+    extractField('confidence_score', true);
+    extractField('current_branch');
+    extractField('cta_label');
+    extractField('ready_for_vision', false, true);
+    extractField('plan_markdown');
+
+    const qsMatch = clean.match(/"questions"\s*:\s*(\[[\s\S]*?\])\s*(?:,|}|\n)/);
+    if (qsMatch) {
       try {
-        const rawQs = JSON.parse(questionsBlockMatch[1]);
-        // Normalize any variant key names (question_text, question_number) to standard shape
-        extracted.questions = rawQs.map((q, idx) => ({
-          id: q.id || (q.question_number != null ? `q${q.question_number}` : `q${idx + 1}`),
-          question: q.question || q.question_text || '',
-          options: Array.isArray(q.options) ? q.options : [],
-        }));
-      } catch {
-        // plain regex fallback
-      }
+        result.questions = JSON.parse(qsMatch[1]);
+      } catch {}
     }
 
-    if (Object.keys(extracted).length > 0) {
-      return extracted;
-    }
+    if (Object.keys(result).length > 0) return result;
   } catch {}
 
   return null;
 }
 
 /**
- * Extracts structured questions and options from plain text or markdown lists
- * @param {string} text 
- * @returns {{ questions: Array<{ id: string, question: string, options: string[] }>, strippedText: string }}
- */
-export function extractStructuredQuestionsFromText(text) {
-  if (!text || typeof text !== 'string') return { questions: [], strippedText: text || '' };
-
-  const lines = text.split('\n');
-  const questions = [];
-  let currentQ = null;
-  const nonQuestionLines = [];
-  let isInQuestionsBlock = false;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const trimmed = line.trim();
-
-    // Check for question header:
-    // e.g. "1. **When lots of people...**", "1. To begin...", "### 1. ...", "Question 1: ..."
-    const isQuestionLine = /^(?:###\s+)?(?:\*\*)?(?:(?:\d+\.|\d+\)|\?|Question\s+\d+:?))\s*(?:\*\*)?\s*(.+)/i.test(trimmed);
-
-    if (isQuestionLine && (trimmed.includes('?') || trimmed.includes(':') || trimmed.includes('**'))) {
-      isInQuestionsBlock = true;
-      if (currentQ && currentQ.question) {
-        questions.push(currentQ);
-      }
-      
-      const cleanQuestionTitle = trimmed
-        .replace(/^(?:###\s+)?(?:\*\*)?(?:(?:\d+\.|\d+\)|\?|Question\s+\d+:?))\s*(?:\*\*)?\s*/i, '')
-        .replace(/^\*+|\*+$/g, '')
-        .trim();
-
-      currentQ = {
-        id: `q${questions.length + 1}`,
-        question: cleanQuestionTitle,
-        options: [],
-      };
-      continue;
-    }
-
-    // Check for option line:
-    // e.g. "* **Option 1:** ...", "* **Choice A:** ...", "* **A:** ...", "- A) ...", "A. ..."
-    const isOptionLine = /^(?:[-*•]\s+)?(?:\*\*)?(?:(?:Option|Choice)\s+)?(?:[A-DА-Я0-9]|\d+)[.:)]\s*(?:\*\*)?\s*(.+)/i.test(trimmed) ||
-                         /^(?:[-*•]\s+)\*\*(?:(?:Option|Choice)\s+)?[A-DА-Я0-9\d]+:\*\*\s*(.+)/i.test(trimmed);
-
-    if (currentQ && isOptionLine) {
-      const cleanOption = trimmed
-        .replace(/^(?:[-*•]\s+)?(?:\*\*)?(?:(?:Option|Choice)\s+)?[A-DА-Я0-9\d]+[.:)]\s*(?:\*\*)?\s*/i, '')
-        .replace(/^(?:[-*•]\s+)\*\*(?:(?:Option|Choice)\s+)?[A-DА-Я0-9\d]+:\*\*\s*/i, '')
-        .replace(/^\*+|\*+$/g, '')
-        .trim();
-
-      if (cleanOption) {
-        currentQ.options.push(cleanOption);
-      }
-      continue;
-    }
-
-    // Continuation line for a previous option (if indented or wrapping)
-    if (currentQ && currentQ.options.length > 0 && trimmed && !trimmed.startsWith('---') && !trimmed.startsWith('***') && !trimmed.toLowerCase().includes('please choose') && !trimmed.toLowerCase().includes('select')) {
-      const lastIdx = currentQ.options.length - 1;
-      currentQ.options[lastIdx] = `${currentQ.options[lastIdx]} ${trimmed}`.trim();
-      continue;
-    }
-
-    // Trailing instructions like "Please choose the option..."
-    if (isInQuestionsBlock && (trimmed.toLowerCase().includes('select') || trimmed.toLowerCase().includes('choose'))) {
-      continue;
-    }
-
-    if (!isInQuestionsBlock) {
-      nonQuestionLines.push(line);
-    }
-  }
-
-  if (currentQ && currentQ.question) {
-    questions.push(currentQ);
-  }
-
-  // Ensure every question has valid options
-  const validQuestions = questions.filter(q => q.question && q.question.length > 5).map((q, idx) => ({
-    id: q.id || `q${idx + 1}`,
-    question: q.question,
-    options: q.options.length >= 2 ? q.options.slice(0, 3) : [
-      'Recommended Standard Approach',
-      'High-Performance / Scalable Setup',
-      'Minimal / Quick Delivery Setup',
-    ],
-  }));
-
-  const strippedText = validQuestions.length > 0
-    ? nonQuestionLines.join('\n').replace(/\n{3,}/g, '\n\n').trim()
-    : text.trim();
-
-  return { questions: validQuestions, strippedText };
-}
-
-/**
- * Normalizes AI questions into standard { id, question, options[] } shape
- * regardless of what keys the model used (question_text, question_number, etc.)
+ * Normalizes question objects to { id, question, options[] } shape
  * @param {Array} rawQuestions
  * @returns {Array<{ id: string, question: string, options: string[] }>}
  */
@@ -231,128 +96,76 @@ function normalizeQuestions(rawQuestions) {
 }
 
 /**
- * Helper to humanize object keys: camelCase / snake_case -> Title Case
- * @param {string} key 
- * @returns {string}
+ * Extracts structured questions from plain text or markdown lists
+ * @param {string} text 
+ * @returns {{ questions: Array<{ id: string, question: string, options: string[] }>, strippedText: string }}
  */
-function humanizeKey(key) {
-  if (!key || typeof key !== 'string') return '';
-  return key
-    .replace(/([A-Z])/g, ' $1')
-    .replace(/[_-]+/g, ' ')
-    .replace(/^\w/, (c) => c.toUpperCase())
-    .trim();
-}
+export function extractStructuredQuestionsFromText(text) {
+  if (!text || typeof text !== 'string') return { questions: [], strippedText: text || '' };
 
-/**
- * Universal JSON to Markdown Converter:
- * Formats any arbitrary JSON data into rich, professional engineering documentation
- * with clean Markdown tables, bold technical callouts, and structured sections.
- * @param {Object | Array} data
- * @param {number} [depth=1]
- * @returns {string}
- */
-export function convertArbitraryJsonToMarkdown(data, depth = 1) {
-  if (data === null || data === undefined) return '';
-  if (typeof data !== 'object') return String(data);
+  const lines = text.split('\n');
+  const questions = [];
+  let currentQ = null;
+  const nonQuestionLines = [];
+  let inQBlock = false;
 
-  // Array Handling
-  if (Array.isArray(data)) {
-    return data
-      .map((item, idx) => {
-        if (typeof item !== 'object' || item === null) {
-          return `- ${item}`;
-        }
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const isQ = /^(?:###\s+)?(?:\*\*)?(?:(?:\d+\.|\d+\)|\?|Question\s+\d+:?))\s*(?:\*\*)?\s*(.+)/i.test(trimmed);
 
-        const sectionName = item.type || item.title || item.name || item.heading || item.label || `Section ${idx + 1}`;
-        let block = `\n### ${sectionName}\n`;
-
-        if (item.headline) block += `**Headline:** ${item.headline}\n\n`;
-        if (item.subHeadline || item.description) block += `**Description / Copy:** ${item.subHeadline || item.description}\n\n`;
-        if (item.visualDescription || item.visual) block += `**Visual & UX Direction:** ${item.visualDescription || item.visual}\n\n`;
-
-        // Render features array if present
-        if (Array.isArray(item.features)) {
-          block += `**Key Features & Deliverables:**\n`;
-          item.features.forEach(f => {
-            if (typeof f === 'object' && f !== null) {
-              block += `- **${f.title || f.name || 'Feature'}:** ${f.description || f.value || ''}\n`;
-            } else {
-              block += `- ${f}\n`;
-            }
-          });
-          block += '\n';
-        }
-
-        // Render nav links or buttons if present
-        if (Array.isArray(item.navLinks)) {
-          block += `**Navigation Items:**\n`;
-          item.navLinks.forEach(l => {
-            block += `- ${l.text || l.label || 'Link'} (${l.url || l.href || '#'})\n`;
-          });
-          block += '\n';
-        }
-
-        if (item.primaryButton) {
-          block += `**Primary Action Button:** "${item.primaryButton.text || 'Submit'}" (${item.primaryButton.url || item.primaryButton.action || '#'})\n\n`;
-        }
-
-        // Render comparison table if present
-        if (item.comparisonTable && typeof item.comparisonTable === 'object') {
-          const ct = item.comparisonTable;
-          const headers = Array.isArray(ct.headers) ? ct.headers : ['Feature', 'Specification', 'Standard'];
-          block += `\n| ${headers.join(' | ')} |\n`;
-          block += `| ${headers.map(() => '---').join(' | ')} |\n`;
-
-          if (Array.isArray(ct.rows)) {
-            ct.rows.forEach(r => {
-              if (typeof r === 'object' && r !== null) {
-                const values = Object.values(r);
-                block += `| ${values.join(' | ')} |\n`;
-              }
-            });
-          }
-          block += '\n';
-        }
-
-        // Process any remaining custom fields
-        const processedKeys = new Set(['type', 'title', 'name', 'heading', 'label', 'headline', 'subHeadline', 'description', 'visualDescription', 'visual', 'features', 'navLinks', 'primaryButton', 'comparisonTable']);
-        const remaining = Object.entries(item).filter(([k]) => !processedKeys.has(k));
-        for (const [k, v] of remaining) {
-          if (typeof v === 'object' && v !== null) {
-            block += `**${humanizeKey(k)}:**\n${convertArbitraryJsonToMarkdown(v, depth + 1)}\n\n`;
-          } else {
-            block += `- **${humanizeKey(k)}:** ${v}\n`;
-          }
-        }
-
-        return block.trim();
-      })
-      .join('\n\n');
-  }
-
-  // Object Handling
-  let markdown = '';
-  const entries = Object.entries(data);
-
-  for (const [key, value] of entries) {
-    const formattedKey = humanizeKey(key);
-    if (value === null || value === undefined) continue;
-
-    if (typeof value !== 'object') {
-      markdown += `- **${formattedKey}:** ${value}\n`;
-    } else if (Array.isArray(value)) {
-      markdown += `\n## ${formattedKey}\n\n${convertArbitraryJsonToMarkdown(value, depth + 1)}\n`;
-    } else {
-      markdown += `\n## ${formattedKey}\n\n${convertArbitraryJsonToMarkdown(value, depth + 1)}\n`;
+    if (isQ && (trimmed.includes('?') || trimmed.includes(':') || trimmed.includes('**'))) {
+      inQBlock = true;
+      if (currentQ && currentQ.question) questions.push(currentQ);
+      const cleanQ = trimmed
+        .replace(/^(?:###\s+)?(?:\*\*)?(?:(?:\d+\.|\d+\)|\?|Question\s+\d+:?))\s*(?:\*\*)?\s*/i, '')
+        .replace(/^\*+|\*+$/g, '')
+        .trim();
+      currentQ = { id: `q${questions.length + 1}`, question: cleanQ, options: [] };
+      continue;
     }
+
+    const isOpt = /^(?:[-*•]\s+)?(?:\*\*)?(?:(?:Option|Choice)\s+)?(?:[A-DА-Я0-9]|\d+)[.:)]\s*(?:\*\*)?\s*(.+)/i.test(trimmed) ||
+                  /^(?:[-*•]\s+)\*\*(?:(?:Option|Choice)\s+)?[A-DА-Я0-9\d]+:\*\*\s*(.+)/i.test(trimmed);
+
+    if (currentQ && isOpt) {
+      const cleanOpt = trimmed
+        .replace(/^(?:[-*•]\s+)?(?:\*\*)?(?:(?:Option|Choice)\s+)?[A-DА-Я0-9\d]+[.:)]\s*(?:\*\*)?\s*/i, '')
+        .replace(/^(?:[-*•]\s+)\*\*(?:(?:Option|Choice)\s+)?[A-DА-Я0-9\d]+:\*\*\s*/i, '')
+        .replace(/^\*+|\*+$/g, '')
+        .trim();
+      if (cleanOpt) currentQ.options.push(cleanOpt);
+      continue;
+    }
+
+    if (currentQ && currentQ.options.length > 0 && trimmed && !trimmed.startsWith('---') && !trimmed.toLowerCase().includes('select') && !trimmed.toLowerCase().includes('choose')) {
+      const lastIdx = currentQ.options.length - 1;
+      currentQ.options[lastIdx] = `${currentQ.options[lastIdx]} ${trimmed}`.trim();
+      continue;
+    }
+
+    if (!inQBlock) nonQuestionLines.push(line);
   }
 
-  return markdown.trim();
+  if (currentQ && currentQ.question) questions.push(currentQ);
+
+  const validQuestions = questions.filter(q => q.question && q.question.length > 5).map((q, idx) => ({
+    id: q.id || `q${idx + 1}`,
+    question: q.question,
+    options: q.options.length >= 2 ? q.options.slice(0, 3) : [
+      'Recommended Standard Approach',
+      'High-Performance / Scalable Setup',
+      'Minimal / Quick Delivery Setup',
+    ],
+  }));
+
+  return {
+    questions: validQuestions,
+    strippedText: validQuestions.length > 0 ? nonQuestionLines.join('\n').trim() : text.trim(),
+  };
 }
 
 /**
- * Parses structured JSON response or system commands from AI output
+ * Parses conversational text and structured alignment commands
  * @param {string} text 
  * @returns {{ cleanText: string, commands: Object | null }}
  */
@@ -363,70 +176,90 @@ export function parseSystemCommands(text) {
 
   const trimmed = text.trim();
 
-  // 1. Check if the entire response is a pure JSON payload (or markdown-fenced ```json { ... } ```)
+  // 1. Primary: Plain Markdown ending with a <meta>...</meta> block
+  const metaMatch = text.match(/<meta>([\s\S]*?)<\/meta>/i);
+  if (metaMatch) {
+    const cleanText = text.replace(/<meta>[\s\S]*?<\/meta>/i, '').trim();
+    const commands = safeJsonParse(metaMatch[1]);
+    if (commands) {
+      if (commands.questions) commands.questions = normalizeQuestions(commands.questions);
+      return { cleanText, commands };
+    }
+  }
+
+  // 2. Legacy %%%SYSTEM_CMD%%% tag
+  const cmdMatch = text.match(/%%%SYSTEM_CMD%%%([\s\S]*?)(?:%%%SYSTEM_CMD%%%|$)/);
+  if (cmdMatch) {
+    const cleanText = text.replace(/%%%SYSTEM_CMD%%%[\s\S]*$/, '').trim();
+    const commands = safeJsonParse(cmdMatch[1]);
+    if (commands) {
+      if (commands.questions) commands.questions = normalizeQuestions(commands.questions);
+      return { cleanText, commands };
+    }
+  }
+
+  // 3. Pure JSON or fenced JSON response (from JSON-enforcing models or stored database sessions)
   if (trimmed.startsWith('{') || trimmed.startsWith('```json') || trimmed.startsWith('```')) {
     const parsedJson = safeJsonParse(trimmed);
     if (parsedJson && typeof parsedJson === 'object') {
-      // Case A: Standard Mother Agent JSON schema
       if (parsedJson.greeting || parsedJson.questions || parsedJson.plan_markdown || parsedJson.confidence_score !== undefined) {
         if (parsedJson.questions) {
           parsedJson.questions = normalizeQuestions(parsedJson.questions);
         }
-        const cleanGreeting = parsedJson.greeting || parsedJson.plan_markdown || 'Here are the next steps for your project:';
+        const cleanText = parsedJson.greeting || parsedJson.plan_markdown || 'Here are the next steps:';
         return {
-          cleanText: cleanGreeting,
+          cleanText,
           commands: parsedJson,
         };
       }
 
-      // Case B: Truly Universal Arbitrary JSON Handling (No hardcoded domain/problem keys!)
-      // When a detailed specification is provided, immediately synthesize the Master Plan directly without forced questions
-      const candidateTitle = parsedJson.title || parsedJson.pageTitle || parsedJson.name || parsedJson.project || parsedJson.companyName || parsedJson.appName || parsedJson.serviceName || Object.keys(parsedJson)[0] || 'Project Architecture';
-      const cleanTitle = typeof candidateTitle === 'string' ? candidateTitle.slice(0, 48) : 'Project Architecture';
-      const universalPlan = convertArbitraryJsonToMarkdown(parsedJson);
-
-      const normalizedCommand = {
-        greeting: `I've analyzed your requirements and generated the complete project architecture for "${cleanTitle}".`,
-        suggested_title: cleanTitle,
-        confidence_score: 85,
-        current_branch: 'Master Architecture & Scope',
-        ready_for_vision: true,
-        cta_label: 'Cook',
-        questions: [],
-        plan_markdown: `# ${cleanTitle}\n\n${universalPlan}`,
-      };
+      // Foreign arbitrary JSON object fallback
+      const cleanTitle = parsedJson.pageTitle || parsedJson.title || parsedJson.name || 'Project Architecture';
+      let planMarkdown = `# ${cleanTitle}\n\n`;
+      if (Array.isArray(parsedJson.sections)) {
+        parsedJson.sections.forEach((s) => {
+          planMarkdown += `## ${s.type || s.headline || 'Section'}\n${s.headline ? `**Headline:** ${s.headline}\n` : ''}`;
+          if (Array.isArray(s.features)) {
+            s.features.forEach((f) => {
+              planMarkdown += `- **${f.title || 'Feature'}:** ${f.description || ''}\n`;
+            });
+          }
+          planMarkdown += '\n';
+        });
+      } else {
+        planMarkdown += Object.entries(parsedJson)
+          .map(([k, v]) => `## ${k}\n${typeof v === 'object' ? JSON.stringify(v, null, 2) : v}`)
+          .join('\n\n');
+      }
 
       return {
-        cleanText: normalizedCommand.greeting,
-        commands: normalizedCommand,
+        cleanText: `I've analyzed your requirements and generated the project architecture for "${cleanTitle}".`,
+        commands: {
+          greeting: `I've analyzed your requirements and generated the project architecture for "${cleanTitle}".`,
+          suggested_title: cleanTitle,
+          confidence_score: 95,
+          current_branch: 'Master Architecture & Scope',
+          ready_for_vision: true,
+          cta_label: 'Cook',
+          questions: [],
+          plan_markdown: planMarkdown.trim(),
+        },
       };
     }
   }
 
-  // 2. Check for hidden %%%SYSTEM_CMD%%% tag
-  let cleanText = text.replace(/%%%SYSTEM_CMD%%%[\s\S]*$/, '').trim();
-  const match = text.match(/%%%SYSTEM_CMD%%%([\s\S]*?)(?:%%%SYSTEM_CMD%%%|$)/);
-
-  let commands = null;
-  if (match) {
-    commands = safeJsonParse(match[1].trim());
-  }
-
-  // 3. Fallback: extract questions from text if inline markdown questions are present
-  const { questions: textQuestions, strippedText } = extractStructuredQuestionsFromText(cleanText);
-
+  // 4. Inline question extraction fallback
+  const { questions: textQuestions, strippedText } = extractStructuredQuestionsFromText(trimmed);
   if (textQuestions.length > 0) {
-    cleanText = strippedText;
-    if (!commands) {
-      commands = {
+    return {
+      cleanText: strippedText,
+      commands: {
         confidence_score: 35,
-        current_branch: 'Project Scope & Setup',
+        current_branch: 'Project Scope & Strategy',
         questions: textQuestions,
-      };
-    } else if (!commands.questions || commands.questions.length === 0) {
-      commands.questions = textQuestions;
-    }
+      },
+    };
   }
 
-  return { cleanText, commands };
+  return { cleanText: trimmed, commands: null };
 }

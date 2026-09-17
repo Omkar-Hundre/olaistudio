@@ -105,7 +105,7 @@ export default function QuestionnaireCard({
           </div>
         )}
 
-        {onSkip && alignmentScore < 85 && (
+        {onSkip && alignmentScore < 95 && (
           <button
             type="button"
             onClick={onSkip}

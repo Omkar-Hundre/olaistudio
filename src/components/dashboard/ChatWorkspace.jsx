@@ -523,20 +523,36 @@ export default function ChatWorkspace({
             console.log(`[AI Performance] ⚡ TTFT: ${Math.round(firstChunkTime - startTime)}ms`);
           }
 
-          // Always show raw streaming text live — strip JSON braces and keys for clean display
-          let cleanStreamingText = accumulatedFullText
-            .replace(/%%%SYSTEM_CMD%%%[\s\S]*$/, '')
-            .replace(/^\s*```(?:json)?\s*/i, '')
-            .replace(/\s*```\s*$/, '')
-            .replace(/^\s*\{\s*/, '')         // strip leading {
-            .replace(/^\s*"(?:greeting|questions|plan_markdown|request_type)"\s*:\s*/i, '')  // strip first JSON key
-            .replace(/^"/, '')               // strip leading quote
-            .trim();
+          // Fluid real-time streaming: smoothly extract dialogue without freezing
+          let cleanStreamingText = '';
 
-          // If greeting has been streamed, use it directly
-          const greetingMatch = accumulatedFullText.match(/"greeting"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
-          if (greetingMatch) {
-            cleanStreamingText = greetingMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').trim();
+          if (accumulatedFullText.includes('<meta>')) {
+            cleanStreamingText = accumulatedFullText.split('<meta>')[0].trim();
+          } else if (accumulatedFullText.includes('%%%SYSTEM_CMD%%%')) {
+            cleanStreamingText = accumulatedFullText.split('%%%SYSTEM_CMD%%%')[0].trim();
+          } else {
+            const greetingIdx = accumulatedFullText.indexOf('"greeting"');
+            if (greetingIdx !== -1) {
+              const afterKey = accumulatedFullText.slice(greetingIdx + 10);
+              const quoteStart = afterKey.indexOf('"');
+              if (quoteStart !== -1) {
+                let inProgress = afterKey.slice(quoteStart + 1);
+                const endMatch = inProgress.match(/"\s*(?:,\s*"[a-zA-Z_]+"|\s*})/);
+                if (endMatch) {
+                  inProgress = inProgress.slice(0, endMatch.index);
+                }
+                cleanStreamingText = inProgress
+                  .replace(/\\n/g, '\n')
+                  .replace(/\\"/g, '"')
+                  .replace(/\\\\/g, '\\');
+              }
+            } else {
+              cleanStreamingText = accumulatedFullText
+                .replace(/^\s*```(?:json)?\s*/i, '')
+                .replace(/\s*```\s*$/, '')
+                .replace(/^\s*\{\s*/, '')
+                .trim();
+            }
           }
 
           setMessages((prev) => {
@@ -561,7 +577,10 @@ export default function ChatWorkspace({
           const parseEnd = performance.now();
           console.log(`[AI Performance] 🎯 Modal Parsed in: ${(parseEnd - parseStart).toFixed(2)}ms`);
 
-          const fullContent = fullText.replace(/%%%SYSTEM_CMD%%%[\s\S]*$/, '').trim();
+          const fullContent = fullText
+            .replace(/<meta>[\s\S]*?<\/meta>/i, '')
+            .replace(/%%%SYSTEM_CMD%%%[\s\S]*$/, '')
+            .trim();
 
           const finalAssistantMessage = {
             role: 'assistant',
@@ -617,7 +636,7 @@ export default function ChatWorkspace({
             } else {
               setActiveQuestions([]);
             }
-            if (commands.ready_for_vision || (commands.confidence_score !== undefined && commands.confidence_score >= 85)) {
+            if (commands.ready_for_vision || (commands.confidence_score !== undefined && commands.confidence_score >= 95)) {
               targetVision = commands.plan_markdown || cleanText;
               setVisionContent(targetVision);
               setActiveQuestions([]);
@@ -629,7 +648,7 @@ export default function ChatWorkspace({
                 updateWorkflowSession(activeSessionId, {
                   vision_content: targetVision,
                   status: 'vision_ready',
-                  confidence_score: Math.max(85, commands.confidence_score || 85),
+                  confidence_score: Math.max(95, commands.confidence_score || 95),
                 });
               }
             }
@@ -710,7 +729,7 @@ export default function ChatWorkspace({
       saveRootSessionState({
         sessionId: activeSessionId,
         messages,
-        confidenceScore: alignmentScore || 85,
+        confidenceScore: alignmentScore || 95,
         currentBranch,
         visionContent: newPlanContent,
         questions: activeQuestions,

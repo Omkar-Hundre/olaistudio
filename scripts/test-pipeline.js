@@ -221,6 +221,39 @@ assert(parsedF.commands.questions.length === 0, 'Does not force redundant questi
 assert(parsedF.commands.plan_markdown.includes('Zelos Aura X1'), 'Converts foreign sections to structured plan markdown');
 assert(!parsedF.cleanText.includes('{') && !parsedF.cleanText.includes('pageTitle'), 'Generates clean human greeting without raw JSON dump');
 
+// Case G: Plain Markdown with closing <meta> block (Conversational mode)
+const markdownWithMeta = `That sounds like an ambitious project! When building a real-time collaborative workspace, the two most critical architectural bottlenecks are state synchronization and latency. Let's make sure we select the right stack from day one.
+
+<meta>
+{
+  "suggested_title": "Collaborative Canvas Workspace",
+  "confidence_score": 40,
+  "current_branch": "Real-time Sync Architecture",
+  "ready_for_vision": false,
+  "cta_label": "Cook",
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Which real-time sync protocol fits your use case?",
+      "options": [
+        "CRDTs via WebRTC / Yjs (Zero central server conflicts)",
+        "Operational Transforms via WebSockets (Central authority)",
+        "Supabase Realtime Broadcast (Lowest operational overhead)"
+      ]
+    }
+  ],
+  "plan_markdown": ""
+}
+</meta>`;
+
+const parsedG = parseSystemCommands(markdownWithMeta);
+assert(parsedG.cleanText.startsWith('That sounds like an ambitious project!'), 'Extracts natural conversational Markdown cleanText');
+assert(!parsedG.cleanText.includes('<meta>') && !parsedG.cleanText.includes('</meta>'), 'Strips <meta> block from cleanText');
+assert(parsedG.commands !== null, 'Extracts commands from <meta> block');
+assert(parsedG.commands.confidence_score === 40, 'Extracts confidence_score from <meta>');
+assert(parsedG.commands.questions.length === 1, 'Extracts questions from <meta>');
+assert(parsedG.commands.questions[0].options.length === 3, 'Extracts 3 options from <meta> question');
+
 // ==============================================================================
 // SUITE 4: 2-Step Protocol Pipeline State Machine
 // ==============================================================================

@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.11.0] - 2026-09-17
+
+### Changed & Improved
+- **Conversational ChatGPT-Style Consultation System Prompt (`workspaceModeService.js`)**:
+  - Replaced rigid 1-2 sentence intro constraint with an articulate, engaging technical consultation prompt that categorizes the user's project (domain classification, system architecture, data models, user journeys, and technical trade-offs).
+  - Elevated the conversational alignment threshold from 85% to 95%, fostering a natural back-and-forth dialogue until architectural scope is fully locked.
+- **Fluid, Non-Freezing Typewriter Response Streaming (`ChatWorkspace.jsx`)**:
+  - Resolved 2-minute perceived latency freeze by implementing dynamic, progressive in-stream extraction for both Markdown with `<meta>` closing tags and streaming JSON formats. Tokens now render live on screen in real time without waiting for full turn completion.
+  - Updated alignment threshold to 95% across `ChatWorkspace.jsx` and `QuestionnaireCard.jsx`.
+- **Streamlined System Command & Metadata Parser (`systemCommandParser.js`)**:
+  - Reduced parser complexity from 433 lines to under 180 lines, providing resilient extraction for Markdown + `<meta>`, pure JSON, and legacy `%%%SYSTEM_CMD%%%` envelopes without brittle regex fallbacks.
+- **Lean Context Memory Formatting (`categorizedMemoryService.js`)**:
+  - Compressed multi-paragraph pseudo-memory into a concise 4-line project context summary, preventing prompt token bloat and accelerating upstream model inference.
+
+---
+
 ## [2.10.0] - 2026-08-29
 
 ### Added
