@@ -239,7 +239,9 @@ export function parseSystemCommands(text) {
         if (parsedJson.suggested_title) {
           parsedJson.suggested_title = cleanSuggestedTitle(parsedJson.suggested_title);
         }
-        const cleanText = parsedJson.greeting || parsedJson.plan_markdown || 'Here are the next steps:';
+        const cleanText = parsedJson.plan_markdown
+          ? `${parsedJson.greeting ? `${parsedJson.greeting}\n\n---\n\n` : ''}${parsedJson.plan_markdown}`
+          : (parsedJson.greeting || 'Here are the next steps:');
         return {
           cleanText,
           commands: parsedJson,

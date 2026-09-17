@@ -22,7 +22,7 @@ import { getWorkspaceModes, DEFAULT_WORKSPACE_MODES } from '../../services/works
 import { getPlatformModels } from '../../services/platformModelService';
 import { parseLocalFile } from '../../utils/fileParser';
 import { uploadFilesSecurely } from '../../services/s3Service';
-import { parseSystemCommands } from '../../utils/systemCommandParser';
+import { parseSystemCommands, cleanSuggestedTitle } from '../../utils/systemCommandParser';
 import { createWorkflowSession, updateWorkflowSession, getWorkflowSession, saveRootSessionState } from '../../services/workflowService';
 import { supabase } from '../../lib/supabase';
 import QuestionnaireCard from './QuestionnaireCard';
@@ -510,13 +510,16 @@ export default function ChatWorkspace({
     let metaExtractedDuringStream = false;
 
     try {
+      const cleanFocusTitle = cleanSuggestedTitle(sessionTitle || 'New Project') || 'New Project';
+      const cleanBranch = cleanSuggestedTitle(currentBranch || 'Core Architecture') || 'Core Architecture';
+
       await sendStreamingProxyChatMessage({
         messages: apiPayload,
         provider: selectedModel.provider,
         model: selectedModel.rawModel,
         systemPrompt: activeMode?.systemPrompt || '',
-        globalContext: visionContent ? `[Current Project Vision & Approved Plan]\n${visionContent}` : `[Project Focus]: ${sessionTitle || 'New Project'}`,
-        parentContext: currentBranch ? `[Current Focus Area]: ${currentBranch} (Alignment: ${alignmentScore || 35}%)` : '',
+        globalContext: visionContent ? `[Current Project Vision & Approved Plan]\n${visionContent}` : `[Project Focus]: ${cleanFocusTitle}`,
+        parentContext: currentBranch ? `[Current Focus Area]: ${cleanBranch} (Alignment: ${alignmentScore || 35}%)` : '',
         isPlatform: selectedModel.isPlatform !== false,
         responseFormat: 'text',
         onChunk: (_delta, accumulatedFullText) => {
@@ -568,6 +571,10 @@ export default function ChatWorkspace({
               cleanStreamingText = accumulatedFullText.slice(0, cmdIdx).trim();
             } else {
               const greetingIdx = accumulatedFullText.indexOf('"greeting"');
+              const planIdx = accumulatedFullText.indexOf('"plan_markdown"');
+              let greetingText = '';
+              let planText = '';
+
               if (greetingIdx !== -1) {
                 const afterKey = accumulatedFullText.slice(greetingIdx + 10);
                 const quoteStart = afterKey.indexOf('"');
@@ -577,11 +584,33 @@ export default function ChatWorkspace({
                   if (endMatch) {
                     inProgress = inProgress.slice(0, endMatch.index);
                   }
-                  cleanStreamingText = inProgress
+                  greetingText = inProgress
                     .replace(/\\n/g, '\n')
                     .replace(/\\"/g, '"')
                     .replace(/\\\\/g, '\\');
                 }
+              }
+
+              if (planIdx !== -1) {
+                const afterPlan = accumulatedFullText.slice(planIdx + 15);
+                const quoteStart = afterPlan.indexOf('"');
+                if (quoteStart !== -1) {
+                  let inPlan = afterPlan.slice(quoteStart + 1);
+                  const endMatch = inPlan.match(/"\s*(?:,\s*"[a-zA-Z_]+"|\s*})/);
+                  if (endMatch) {
+                    inPlan = inPlan.slice(0, endMatch.index);
+                  }
+                  planText = inPlan
+                    .replace(/\\n/g, '\n')
+                    .replace(/\\"/g, '"')
+                    .replace(/\\\\/g, '\\');
+                }
+              }
+
+              if (planText) {
+                cleanStreamingText = greetingText ? `${greetingText}\n\n---\n\n${planText}` : planText;
+              } else if (greetingText) {
+                cleanStreamingText = greetingText;
               } else {
                 cleanStreamingText = accumulatedFullText
                   .replace(/^\s*```(?:json)?\s*/i, '')
@@ -674,14 +703,18 @@ export default function ChatWorkspace({
               setActiveQuestions([]);
             }
             if (commands.ready_for_vision || (commands.confidence_score !== undefined && commands.confidence_score >= 95)) {
-              targetVision = commands.plan_markdown || cleanText;
-              setVisionContent(targetVision);
+              // Guard: Only update targetVision if we have a substantial plan (not a 1-sentence statement)
+              const candidatePlan = commands.plan_markdown || (cleanText && cleanText.length > 200 ? cleanText : '');
+              if (candidatePlan && (candidatePlan.length > 100 || !visionContent)) {
+                targetVision = candidatePlan;
+                setVisionContent(targetVision);
+              }
               setActiveQuestions([]);
               if (commands.cta_label) {
                 targetCta = commands.cta_label;
                 setCtaLabel(commands.cta_label);
               }
-              if (activeSessionId) {
+              if (activeSessionId && targetVision) {
                 updateWorkflowSession(activeSessionId, {
                   vision_content: targetVision,
                   status: 'vision_ready',

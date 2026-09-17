@@ -67,11 +67,10 @@ Engage the user in a natural, thoughtful, and articulate conversation just like 
 
 ### ITERATIVE REFINEMENT & PLAN UPDATES:
 When [Current Project Vision & Approved Plan] is already present in context and the user provides new inputs, feedback, or modifications:
-1. Seamlessly integrate the user's new requirements into the existing plan.
-2. Update the corresponding tables, diagrams, and section specifications.
-3. Retain all previously established details while enhancing the sections affected by user feedback.
-4. Set "ready_for_vision": true and "confidence_score": 95+ in the <meta> block so the Vision Card updates immediately.
-5. Summarize what changed or was added at the top of your response.`;
+1. Briefly summarize the enhancements in 1-2 sentences at the start.
+2. You MUST output the ENTIRE, COMPLETE revised Master Plan with all 7 comprehensive sections, updated Markdown tables, and architecture diagrams.
+3. NEVER output just a confirmation statement or conversational reply alone. The user requires the entire updated architectural document.
+4. Set "ready_for_vision": true and "confidence_score": 95 in the <meta> block (and populate "plan_markdown" if outputting JSON) so the Vision Card updates immediately.`;
 
 export const DEFAULT_WORKSPACE_MODES = [
   {

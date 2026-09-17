@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.11.0] - 2026-09-17
 
+- **Full Plan Generation & Vision Overwrite Protection (`ChatWorkspace.jsx`, `systemCommandParser.js`)**:
+  - Implemented strict guards preventing single-sentence conversational confirmations from overwriting established Vision Card Master Plans.
+  - Combined `plan_markdown` into `cleanText` so that comprehensive Master Plans render directly in both the chat feed and the right-hand Vision Card panel.
+  - Sanitized `sessionTitle` and `currentBranch` with `cleanSuggestedTitle` in outbound `globalContext` to prevent corrupted phrase repetition loops.
+  - Refined the Iterative Refinement protocol to mandate complete 7-section Master Plan regeneration on every modification turn.
 - **Top `<meta>` Header & Instant Streaming Extraction (`workspaceModeService.js`, `ChatWorkspace.jsx`)**:
   - Relocated structured `<meta>` block to the very top of AI responses, enabling instant 300ms metadata synchronization (confidence score, active questions, branch, and project title).
   - Resolved 15.9s perceived latency freeze by slicing and rendering the live Markdown stream immediately after the closing `</meta>` tag.
