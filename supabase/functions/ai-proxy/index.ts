@@ -161,8 +161,13 @@ Deno.serve(async (req) => {
         }
 
         const generationConfig: any = {
-          response_mime_type: "application/json",
-          response_schema: {
+          temperature: 0.3,
+          maxOutputTokens: 4096,
+        };
+
+        if (responseFormat === "json") {
+          generationConfig.response_mime_type = "application/json";
+          generationConfig.response_schema = {
             type: "OBJECT",
             properties: {
               greeting: { type: "STRING" },
@@ -189,9 +194,8 @@ Deno.serve(async (req) => {
               plan_markdown: { type: "STRING" }
             },
             required: ["greeting", "confidence_score", "ready_for_vision", "plan_markdown"]
-          },
-          temperature: 0.7,
-        };
+          };
+        }
 
         const candidateModels = Array.from(new Set([model, "gemini-3.6-flash", "gemini-2.5-flash", "gemini-flash-latest"]));
         let upstreamRes: Response | null = null;
@@ -199,7 +203,7 @@ Deno.serve(async (req) => {
 
         for (const candidate of candidateModels) {
           const candidateGenConfig = { ...generationConfig };
-          if (candidate === "gemini-2.5-flash") {
+          if (candidate.includes("2.5-flash") || candidate.includes("2.0-flash")) {
             candidateGenConfig.thinking_config = { thinking_budget: 0 };
           } else {
             delete candidateGenConfig.thinking_config;
@@ -325,7 +329,9 @@ Deno.serve(async (req) => {
             model: model.startsWith("gpt") ? model : "gpt-4o",
             messages: openaiMessages,
             stream: true,
-            response_format: { type: "json_object" },
+            temperature: 0.3,
+            max_tokens: 4096,
+            ...(responseFormat === "json" ? { response_format: { type: "json_object" } } : {}),
           }),
         });
 

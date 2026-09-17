@@ -11,7 +11,7 @@
  * ==============================================================================
  */
 
-import { parseSystemCommands, safeJsonParse, extractStructuredQuestionsFromText } from '../src/utils/systemCommandParser.js';
+import { parseSystemCommands, safeJsonParse, extractStructuredQuestionsFromText, cleanSuggestedTitle } from '../src/utils/systemCommandParser.js';
 import { calculateTokenBudget, optimizeMessagesForContextWindow, estimateTokens } from '../src/utils/tokenBudget.js';
 
 let passedTests = 0;
@@ -253,6 +253,18 @@ assert(parsedG.commands !== null, 'Extracts commands from <meta> block');
 assert(parsedG.commands.confidence_score === 40, 'Extracts confidence_score from <meta>');
 assert(parsedG.commands.questions.length === 1, 'Extracts questions from <meta>');
 assert(parsedG.commands.questions[0].options.length === 3, 'Extracts 3 options from <meta> question');
+
+// Case H: Runaway n-gram loop title sanitization (e.g. repetitive phrases)
+const runawayTitle = 'The Daily Dill Co. Landing Page Design Planler Page Design Planler Page Design Planler Page Design Planler Page Design';
+const cleanedTitle = cleanSuggestedTitle(runawayTitle);
+assert(!cleanedTitle.includes('Planler Page Design Planler'), 'Breaks runaway repetitive phrase loop in titles');
+assert(cleanedTitle.length <= 45, 'Caps title length to 45 chars');
+
+// Case I: Partial stream chunk with <meta tag in progress
+const streamChunk1 = 'Hello! Let us build your pickle brand landing page.\n\n<meta>\n{"confide';
+const metaIdx = streamChunk1.search(/<meta/i);
+const streamClean = metaIdx !== -1 ? streamChunk1.slice(0, metaIdx).trim() : streamChunk1.trim();
+assert(streamClean === 'Hello! Let us build your pickle brand landing page.', 'Cleanly strips <meta from live streaming chunk');
 
 // ==============================================================================
 // SUITE 4: 2-Step Protocol Pipeline State Machine

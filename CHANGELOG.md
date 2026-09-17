@@ -9,12 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.11.0] - 2026-09-17
 
-### Changed & Improved
+- **Real-Time Streaming Text Display (`ChatWorkspace.jsx`)**:
+  - Fixed UI suppression bug where assistant messages were hidden behind a static "Thinking..." loader during streaming. Responses and markdown now render continuously in real time with an animated cursor.
+  - Added live streaming status (`Generating response...`) and seamless `<meta>` stripping so structured command tags never flicker into the chat view.
+- **Runaway Token Loop & Degeneration Prevention (`ai-proxy/index.ts`, `systemCommandParser.js`)**:
+  - Calibrated model temperature to `0.3`, added `maxOutputTokens: 4096`, and removed forced JSON schemas on streaming requests to eliminate runaway phrase degeneration (e.g. infinite repeating titles).
+  - Implemented `cleanSuggestedTitle` to detect and break n-gram phrase repetition loops and cap project titles to 45 characters.
 - **Conversational ChatGPT-Style Consultation System Prompt (`workspaceModeService.js`)**:
   - Replaced rigid 1-2 sentence intro constraint with an articulate, engaging technical consultation prompt that categorizes the user's project (domain classification, system architecture, data models, user journeys, and technical trade-offs).
   - Elevated the conversational alignment threshold from 85% to 95%, fostering a natural back-and-forth dialogue until architectural scope is fully locked.
 - **Fluid, Non-Freezing Typewriter Response Streaming (`ChatWorkspace.jsx`)**:
-  - Resolved 2-minute perceived latency freeze by implementing dynamic, progressive in-stream extraction for both Markdown with `<meta>` closing tags and streaming JSON formats. Tokens now render live on screen in real time without waiting for full turn completion.
+  - Resolved perceived latency freeze by implementing dynamic, progressive in-stream extraction for both Markdown with `<meta>` closing tags and streaming JSON formats. Tokens now render live on screen in real time without waiting for full turn completion.
   - Updated alignment threshold to 95% across `ChatWorkspace.jsx` and `QuestionnaireCard.jsx`.
 - **Streamlined System Command & Metadata Parser (`systemCommandParser.js`)**:
   - Reduced parser complexity from 433 lines to under 180 lines, providing resilient extraction for Markdown + `<meta>`, pure JSON, and legacy `%%%SYSTEM_CMD%%%` envelopes without brittle regex fallbacks.

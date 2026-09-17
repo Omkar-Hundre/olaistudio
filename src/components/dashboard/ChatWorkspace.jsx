@@ -517,6 +517,7 @@ export default function ChatWorkspace({
         globalContext: visionContent ? `[Current Project Vision & Approved Plan]\n${visionContent}` : `[Project Focus]: ${sessionTitle || 'New Project'}`,
         parentContext: currentBranch ? `[Current Focus Area]: ${currentBranch} (Alignment: ${alignmentScore || 35}%)` : '',
         isPlatform: selectedModel.isPlatform !== false,
+        responseFormat: 'text',
         onChunk: (_delta, accumulatedFullText) => {
           if (!firstChunkTime) {
             firstChunkTime = performance.now();
@@ -526,10 +527,13 @@ export default function ChatWorkspace({
           // Fluid real-time streaming: smoothly extract dialogue without freezing
           let cleanStreamingText = '';
 
-          if (accumulatedFullText.includes('<meta>')) {
-            cleanStreamingText = accumulatedFullText.split('<meta>')[0].trim();
-          } else if (accumulatedFullText.includes('%%%SYSTEM_CMD%%%')) {
-            cleanStreamingText = accumulatedFullText.split('%%%SYSTEM_CMD%%%')[0].trim();
+          const metaIdx = accumulatedFullText.search(/<meta/i);
+          const cmdIdx = accumulatedFullText.indexOf('%%%SYSTEM_CMD%%%');
+
+          if (metaIdx !== -1) {
+            cleanStreamingText = accumulatedFullText.slice(0, metaIdx).trim();
+          } else if (cmdIdx !== -1) {
+            cleanStreamingText = accumulatedFullText.slice(0, cmdIdx).trim();
           } else {
             const greetingIdx = accumulatedFullText.indexOf('"greeting"');
             if (greetingIdx !== -1) {
@@ -561,7 +565,7 @@ export default function ChatWorkspace({
               next[next.length - 1] = {
                 ...next[next.length - 1],
                 content: accumulatedFullText,
-                displayContent: cleanStreamingText || accumulatedFullText.trim().slice(0, 300),
+                displayContent: cleanStreamingText || accumulatedFullText.trim(),
               };
             }
             return next;
@@ -857,11 +861,26 @@ export default function ChatWorkspace({
                         </div>
                       )}
 
-                      {/* Live Thinking State while Streaming */}
+                      {/* Streaming state: live typewriter and thinking display */}
                       {!isUser && msg.isStreaming && (
-                        <div className="flex items-center gap-2 py-0.5 text-xs text-slate-500 dark:text-zinc-400 select-none">
-                          <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-700 dark:text-zinc-300 shrink-0" />
-                          <span>Thinking...</span>
+                        <div>
+                          {!msg.displayContent ? (
+                            <div className="flex items-center gap-2 py-0.5 text-xs text-slate-500 dark:text-zinc-400 select-none">
+                              <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-700 dark:text-zinc-300 shrink-0" />
+                              <span>Thinking and analyzing project...</span>
+                            </div>
+                          ) : (
+                            <div className="space-y-1.5">
+                              <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400 dark:text-zinc-500 select-none pb-0.5">
+                                <Loader2 className="h-3 w-3 animate-spin text-slate-500 dark:text-zinc-400 shrink-0" />
+                                <span>Generating response...</span>
+                              </div>
+                              <div className="relative">
+                                <MarkdownRenderer content={msg.displayContent} />
+                                <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-slate-700 dark:bg-zinc-300 animate-pulse align-middle" />
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
 

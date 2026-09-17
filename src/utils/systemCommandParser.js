@@ -66,6 +66,10 @@ export function safeJsonParse(raw) {
     extractField('ready_for_vision', false, true);
     extractField('plan_markdown');
 
+    if (result.suggested_title) {
+      result.suggested_title = cleanSuggestedTitle(result.suggested_title);
+    }
+
     const qsMatch = clean.match(/"questions"\s*:\s*(\[[\s\S]*?\])\s*(?:,|}|\n)/);
     if (qsMatch) {
       try {
@@ -77,6 +81,30 @@ export function safeJsonParse(raw) {
   } catch {}
 
   return null;
+}
+
+/**
+ * Sanitizes project titles, removing runaway repeated n-gram loops and capping length
+ * @param {string} title 
+ * @returns {string}
+ */
+export function cleanSuggestedTitle(title) {
+  if (!title || typeof title !== 'string') return '';
+  const cleaned = title.trim().replace(/^["']|["']$/g, '');
+  const words = cleaned.split(/\s+/);
+  const deduped = [];
+  for (let i = 0; i < words.length; i++) {
+    if (i > 0 && words[i].toLowerCase() === words[i - 1].toLowerCase()) continue;
+    if (i >= 3 && 
+        words[i].toLowerCase() === words[i - 3].toLowerCase() &&
+        words[i - 1].toLowerCase() === words[i - 4].toLowerCase() &&
+        words[i - 2].toLowerCase() === words[i - 5].toLowerCase()) {
+      break;
+    }
+    deduped.push(words[i]);
+    if (deduped.length >= 6) break;
+  }
+  return deduped.join(' ').slice(0, 45).trim();
 }
 
 /**
@@ -183,6 +211,7 @@ export function parseSystemCommands(text) {
     const commands = safeJsonParse(metaMatch[1]);
     if (commands) {
       if (commands.questions) commands.questions = normalizeQuestions(commands.questions);
+      if (commands.suggested_title) commands.suggested_title = cleanSuggestedTitle(commands.suggested_title);
       return { cleanText, commands };
     }
   }
@@ -194,6 +223,7 @@ export function parseSystemCommands(text) {
     const commands = safeJsonParse(cmdMatch[1]);
     if (commands) {
       if (commands.questions) commands.questions = normalizeQuestions(commands.questions);
+      if (commands.suggested_title) commands.suggested_title = cleanSuggestedTitle(commands.suggested_title);
       return { cleanText, commands };
     }
   }
@@ -205,6 +235,9 @@ export function parseSystemCommands(text) {
       if (parsedJson.greeting || parsedJson.questions || parsedJson.plan_markdown || parsedJson.confidence_score !== undefined) {
         if (parsedJson.questions) {
           parsedJson.questions = normalizeQuestions(parsedJson.questions);
+        }
+        if (parsedJson.suggested_title) {
+          parsedJson.suggested_title = cleanSuggestedTitle(parsedJson.suggested_title);
         }
         const cleanText = parsedJson.greeting || parsedJson.plan_markdown || 'Here are the next steps:';
         return {

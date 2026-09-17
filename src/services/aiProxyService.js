@@ -119,6 +119,7 @@ export async function sendStreamingProxyChatMessage({
   globalContext = '',
   parentContext = '',
   isPlatform = true,
+  responseFormat = 'text',
   onChunk = () => {},
   onDone = () => {},
   onError = () => {},
@@ -157,6 +158,7 @@ export async function sendStreamingProxyChatMessage({
         parentContext,
         stream: true,
         isPlatform,
+        responseFormat,
       }),
     });
 
