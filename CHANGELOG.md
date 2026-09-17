@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.11.0] - 2026-09-17
 
+- **150.9s Latency Resolution & Master Plan Depth Upgrade (`workspaceModeService.js`, `ChatWorkspace.jsx`, `systemCommandParser.js`, `aiProxyService.js`)**:
+  - Eliminated the 150.9s response freeze by harmonizing system prompts with Gemini API JSON schemas, strictly banning runaway source code loops and enforcing immediate completion upon Master Plan synthesis.
+  - Upgraded Master Plan depth with mandatory structured Markdown tables (Design System Tokens, Wireframe Specifications, Data Schema Models, Phasing Roadmaps) and ASCII component trees.
+  - Implemented residual TCP line buffering in `aiProxyService.js` to ensure zero dropped SSE packets across network frames.
+  - Replaced brittle regex in `systemCommandParser.js` and `ChatWorkspace.jsx` with an unescaped string extractor (`extractJsonStringField`), eliminating quote truncation and enabling live real-time Master Plan streaming directly into the Vision Card.
+  - Synchronized updated system prompts across all 4 modes in Supabase `public.workspace_modes`.
+
 - **Full Plan Generation & Vision Overwrite Protection (`ChatWorkspace.jsx`, `systemCommandParser.js`)**:
   - Implemented strict guards preventing single-sentence conversational confirmations from overwriting established Vision Card Master Plans.
   - Combined `plan_markdown` into `cleanText` so that comprehensive Master Plans render directly in both the chat feed and the right-hand Vision Card panel.

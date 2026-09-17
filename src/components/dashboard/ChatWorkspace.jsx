@@ -22,7 +22,7 @@ import { getWorkspaceModes, DEFAULT_WORKSPACE_MODES } from '../../services/works
 import { getPlatformModels } from '../../services/platformModelService';
 import { parseLocalFile } from '../../utils/fileParser';
 import { uploadFilesSecurely } from '../../services/s3Service';
-import { parseSystemCommands, cleanSuggestedTitle } from '../../utils/systemCommandParser';
+import { parseSystemCommands, cleanSuggestedTitle, extractJsonStringField } from '../../utils/systemCommandParser';
 import { createWorkflowSession, updateWorkflowSession, getWorkflowSession, saveRootSessionState } from '../../services/workflowService';
 import { supabase } from '../../lib/supabase';
 import QuestionnaireCard from './QuestionnaireCard';
@@ -528,97 +528,56 @@ export default function ChatWorkspace({
             console.log(`[AI Performance] ⚡ TTFT: ${Math.round(firstChunkTime - startTime)}ms`);
           }
 
-          // Fluid real-time streaming: smoothly extract dialogue without freezing
           let cleanStreamingText = '';
 
-          // 1. Meta at the top: when </meta> arrives, strip it and stream the rest as pure markdown
-          if (accumulatedFullText.includes('</meta>')) {
-            cleanStreamingText = accumulatedFullText.replace(/<meta>[\s\S]*?<\/meta>/i, '').trim();
+          // 1. Direct JSON streaming via robust unescaped string extractor
+          const greetingText = extractJsonStringField(accumulatedFullText, 'greeting');
+          const planText = extractJsonStringField(accumulatedFullText, 'plan_markdown');
 
-            // Real-time metadata sync: immediately reflect confidence, branch, and questions
-            if (!metaExtractedDuringStream) {
-              const metaMatch = accumulatedFullText.match(/<meta>([\s\S]*?)<\/meta>/i);
-              if (metaMatch) {
-                metaExtractedDuringStream = true;
-                const liveCmds = safeJsonParse(metaMatch[1]);
-                if (liveCmds) {
-                  if (liveCmds.confidence_score !== undefined) {
-                    setAlignmentScore(liveCmds.confidence_score);
-                  }
-                  if (liveCmds.current_branch) {
-                    setCurrentBranch(liveCmds.current_branch);
-                  }
-                  if (liveCmds.questions && Array.isArray(liveCmds.questions) && liveCmds.questions.length > 0) {
-                    setActiveQuestions(liveCmds.questions);
-                  }
-                  if (liveCmds.suggested_title) {
-                    setSessionTitle(liveCmds.suggested_title);
-                  }
-                }
+          if (greetingText || planText) {
+            cleanStreamingText = planText
+              ? (greetingText ? `${greetingText}\n\n---\n\n${planText}` : planText)
+              : greetingText;
+
+            // Live metadata extraction during stream
+            const scoreMatch = accumulatedFullText.match(/"confidence_score"\s*:\s*(\d+)/i);
+            if (scoreMatch) {
+              const liveScore = parseInt(scoreMatch[1], 10);
+              if (liveScore > (alignmentScore || 0)) {
+                setAlignmentScore(liveScore);
               }
             }
-          } else if (accumulatedFullText.trimStart().startsWith('<meta')) {
-            // <meta> is actively generating at the very top (takes ~300ms)
+
+            const branchText = extractJsonStringField(accumulatedFullText, 'current_branch');
+            if (branchText && branchText !== currentBranch) {
+              setCurrentBranch(branchText);
+            }
+
+            const liveTitle = extractJsonStringField(accumulatedFullText, 'suggested_title');
+            if (liveTitle && !sessionTitle.includes(liveTitle)) {
+              const cleaned = cleanSuggestedTitle(liveTitle);
+              if (cleaned) setSessionTitle(cleaned);
+            }
+
+            // Real-time Master Plan update in Vision Card
+            const isReadyForVision = accumulatedFullText.includes('"ready_for_vision": true') ||
+              (scoreMatch && parseInt(scoreMatch[1], 10) >= 95);
+
+            if (planText && planText.length > 50 && isReadyForVision) {
+              setVisionContent(planText);
+            }
+          } else if (accumulatedFullText.includes('</meta>')) {
+            // 2. Meta tag format fallback
+            cleanStreamingText = accumulatedFullText.replace(/<meta>[\s\S]*?<\/meta>/i, '').trim();
+          } else if (accumulatedFullText.includes('%%%SYSTEM_CMD%%%')) {
+            // 3. Legacy tag format fallback
+            cleanStreamingText = accumulatedFullText.replace(/%%%SYSTEM_CMD%%%[\s\S]*$/, '').trim();
+          } else if (accumulatedFullText.trimStart().startsWith('{')) {
+            // JSON structure is still opening its first key
             cleanStreamingText = '';
           } else {
-            // Legacy format or bottom <meta>
-            const metaIdx = accumulatedFullText.search(/<meta/i);
-            const cmdIdx = accumulatedFullText.indexOf('%%%SYSTEM_CMD%%%');
-
-            if (metaIdx !== -1) {
-              cleanStreamingText = accumulatedFullText.slice(0, metaIdx).trim();
-            } else if (cmdIdx !== -1) {
-              cleanStreamingText = accumulatedFullText.slice(0, cmdIdx).trim();
-            } else {
-              const greetingIdx = accumulatedFullText.indexOf('"greeting"');
-              const planIdx = accumulatedFullText.indexOf('"plan_markdown"');
-              let greetingText = '';
-              let planText = '';
-
-              if (greetingIdx !== -1) {
-                const afterKey = accumulatedFullText.slice(greetingIdx + 10);
-                const quoteStart = afterKey.indexOf('"');
-                if (quoteStart !== -1) {
-                  let inProgress = afterKey.slice(quoteStart + 1);
-                  const endMatch = inProgress.match(/"\s*(?:,\s*"[a-zA-Z_]+"|\s*})/);
-                  if (endMatch) {
-                    inProgress = inProgress.slice(0, endMatch.index);
-                  }
-                  greetingText = inProgress
-                    .replace(/\\n/g, '\n')
-                    .replace(/\\"/g, '"')
-                    .replace(/\\\\/g, '\\');
-                }
-              }
-
-              if (planIdx !== -1) {
-                const afterPlan = accumulatedFullText.slice(planIdx + 15);
-                const quoteStart = afterPlan.indexOf('"');
-                if (quoteStart !== -1) {
-                  let inPlan = afterPlan.slice(quoteStart + 1);
-                  const endMatch = inPlan.match(/"\s*(?:,\s*"[a-zA-Z_]+"|\s*})/);
-                  if (endMatch) {
-                    inPlan = inPlan.slice(0, endMatch.index);
-                  }
-                  planText = inPlan
-                    .replace(/\\n/g, '\n')
-                    .replace(/\\"/g, '"')
-                    .replace(/\\\\/g, '\\');
-                }
-              }
-
-              if (planText) {
-                cleanStreamingText = greetingText ? `${greetingText}\n\n---\n\n${planText}` : planText;
-              } else if (greetingText) {
-                cleanStreamingText = greetingText;
-              } else {
-                cleanStreamingText = accumulatedFullText
-                  .replace(/^\s*```(?:json)?\s*/i, '')
-                  .replace(/\s*```\s*$/, '')
-                  .replace(/^\s*\{\s*/, '')
-                  .trim();
-              }
-            }
+            // Plain text stream
+            cleanStreamingText = accumulatedFullText;
           }
 
           setMessages((prev) => {

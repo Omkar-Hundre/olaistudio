@@ -306,6 +306,20 @@ const chunkWithTopMetaClosed = topMetaPayload.slice(0, 300);
 const streamCleanTop = chunkWithTopMetaClosed.replace(/<meta>[\s\S]*?<\/meta>/i, '').trim();
 assert(streamCleanTop.startsWith('# 🥒 The Daily Dill Co.'), 'Immediate live stream extraction after top <meta> closes');
 
+// Case K: Resilient plan_markdown parsing with unescaped internal quotes and Markdown tables
+const richJsonWithInternalQuotes = `{
+  "greeting": "Hello! I have updated your pickle landing page plan.",
+  "confidence_score": 95,
+  "ready_for_vision": true,
+  "plan_markdown": "# 🥒 The Daily Dill Co. — Master Plan\\n\\n### 1. Hero Section\\nHeadline: \\"Bold, crunchy, and unapologetically tangy.\\"\\nSubheadline: Hand-crafted small-batch pickles.\\n\\n### 2. Design Tokens Table\\n| Role | Token | Hex | Tailwind |\\n|---|---|---|---|\\n| Primary | Forest Dill | #1E3A2B | bg-emerald-900 |\\n| Accent | Spicy Habanero | #D9381E | bg-red-600 |\\n\\n### 3. Social Proof & Poll\\nInteractive Poll: \\"What is your go-to flavor?\\"\\nBatch transparency: #0422 Austin, TX."
+}`;
+
+const parsedK = parseSystemCommands(richJsonWithInternalQuotes);
+assert(parsedK.commands !== null, 'Parses JSON with internal quotes and tables');
+assert(parsedK.commands.plan_markdown.includes('Design Tokens Table'), 'Preserves Markdown tables past internal quotes in plan_markdown');
+assert(parsedK.commands.plan_markdown.includes('#0422 Austin, TX.'), 'Extracts full plan_markdown to the end without truncation');
+assert(parsedK.commands.plan_markdown.includes('Spicy Habanero'), 'Preserves color tokens table row');
+
 // ==============================================================================
 // SUITE 4: 2-Step Protocol Pipeline State Machine
 // ==============================================================================

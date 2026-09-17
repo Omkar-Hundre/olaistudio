@@ -174,16 +174,19 @@ export async function sendStreamingProxyChatMessage({
     let accumulatedText = '';
     let creditsRemaining = undefined;
 
+    let sseResidualBuffer = '';
+
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
 
-      const rawChunk = decoder.decode(value, { stream: true });
-      const lines = rawChunk.split('\n');
+      sseResidualBuffer += decoder.decode(value, { stream: true });
+      const lines = sseResidualBuffer.split('\n');
+      sseResidualBuffer = lines.pop() || ''; // Preserve incomplete trailing fragment for next read
 
       for (const line of lines) {
         if (line.startsWith('data: ')) {
-          const payload = line.replace('data: ', '').trim();
+          const payload = line.slice(6).trim();
           if (payload === '[DONE]') {
             continue;
           }
@@ -197,9 +200,26 @@ export async function sendStreamingProxyChatMessage({
               creditsRemaining = parsed.creditsRemaining;
             }
           } catch {
-            // Partial JSON buffer
+            // Partial JSON buffer within payload line
           }
         }
+      }
+    }
+
+    // Process any remaining buffered line upon stream close
+    if (sseResidualBuffer.trim().startsWith('data: ')) {
+      const payload = sseResidualBuffer.trim().slice(6).trim();
+      if (payload !== '[DONE]') {
+        try {
+          const parsed = JSON.parse(payload);
+          if (parsed.delta) {
+            accumulatedText += parsed.delta;
+            onChunk(parsed.delta, accumulatedText);
+          }
+          if (parsed.creditsRemaining !== undefined) {
+            creditsRemaining = parsed.creditsRemaining;
+          }
+        } catch {}
       }
     }
 

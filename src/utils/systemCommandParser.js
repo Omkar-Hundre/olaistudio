@@ -36,39 +36,35 @@ export function safeJsonParse(raw) {
     return JSON.parse(fixed);
   } catch {}
 
-  // Regex field extraction fallback
+  // Robust field extraction fallback
   try {
     const result = {};
-    const extractField = (key, isInt = false, isBool = false) => {
-      if (isInt) {
-        const m = clean.match(new RegExp(`"${key}"\\s*:\\s*(\\d+)`));
-        if (m) result[key] = parseInt(m[1], 10);
-      } else if (isBool) {
-        const m = clean.match(new RegExp(`"${key}"\\s*:\\s*(true|false)`, 'i'));
-        if (m) result[key] = m[1].toLowerCase() === 'true';
-      } else {
-        const m = clean.match(new RegExp(`"${key}"\\s*:\\s*"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"`));
-        if (m) {
-          try {
-            result[key] = JSON.parse(`"${m[1]}"`);
-          } catch {
-            result[key] = m[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
-          }
-        }
-      }
+    const extractInt = (key) => {
+      const m = clean.match(new RegExp(`"${key}"\\s*:\\s*(\\d+)`, 'i'));
+      if (m) result[key] = parseInt(m[1], 10);
+    };
+    const extractBool = (key) => {
+      const m = clean.match(new RegExp(`"${key}"\\s*:\\s*(true|false)`, 'i'));
+      if (m) result[key] = m[1].toLowerCase() === 'true';
     };
 
-    extractField('greeting');
-    extractField('suggested_title');
-    extractField('confidence_score', true);
-    extractField('current_branch');
-    extractField('cta_label');
-    extractField('ready_for_vision', false, true);
-    extractField('plan_markdown');
+    extractInt('confidence_score');
+    extractBool('ready_for_vision');
 
-    if (result.suggested_title) {
-      result.suggested_title = cleanSuggestedTitle(result.suggested_title);
-    }
+    const greeting = extractJsonStringField(clean, 'greeting');
+    if (greeting) result.greeting = greeting;
+
+    const suggestedTitle = extractJsonStringField(clean, 'suggested_title');
+    if (suggestedTitle) result.suggested_title = cleanSuggestedTitle(suggestedTitle);
+
+    const currentBranch = extractJsonStringField(clean, 'current_branch');
+    if (currentBranch) result.current_branch = currentBranch;
+
+    const ctaLabel = extractJsonStringField(clean, 'cta_label');
+    if (ctaLabel) result.cta_label = ctaLabel;
+
+    const planMarkdown = extractJsonStringField(clean, 'plan_markdown');
+    if (planMarkdown) result.plan_markdown = planMarkdown;
 
     const qsMatch = clean.match(/"questions"\s*:\s*(\[[\s\S]*?\])\s*(?:,|}|\n)/);
     if (qsMatch) {
@@ -81,6 +77,57 @@ export function safeJsonParse(raw) {
   } catch {}
 
   return null;
+}
+
+/**
+ * Extracts a string value from raw or in-progress JSON without truncating on unescaped internal quotes
+ * @param {string} rawJson 
+ * @param {string} fieldName 
+ * @returns {string}
+ */
+export function extractJsonStringField(rawJson, fieldName) {
+  if (!rawJson || typeof rawJson !== 'string') return '';
+  const keyPattern = new RegExp(`"${fieldName}"\\s*:\\s*"`, 'i');
+  const match = rawJson.match(keyPattern);
+  if (!match) return '';
+
+  const startIndex = match.index + match[0].length;
+  let inEscape = false;
+  let content = '';
+
+  for (let i = startIndex; i < rawJson.length; i++) {
+    const char = rawJson[i];
+    if (inEscape) {
+      if (char === 'n') content += '\n';
+      else if (char === 'r') content += '\r';
+      else if (char === 't') content += '\t';
+      else if (char === '"') content += '"';
+      else if (char === '\\') content += '\\';
+      else content += char;
+      inEscape = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      inEscape = true;
+      continue;
+    }
+
+    if (char === '"') {
+      // Check if this quote terminates the string: followed by optional whitespace and (',' | '}' | EOF)
+      const remainder = rawJson.slice(i + 1).trimStart();
+      if (remainder.length === 0 || remainder.startsWith(',') || remainder.startsWith('}')) {
+        return content;
+      }
+      // If not followed by ',' or '}', it's an internal quote inside user text/markdown
+      content += '"';
+      continue;
+    }
+
+    content += char;
+  }
+
+  return content;
 }
 
 /**
