@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.11.0] - 2026-09-17
 
+- **Top `<meta>` Header & Instant Streaming Extraction (`workspaceModeService.js`, `ChatWorkspace.jsx`)**:
+  - Relocated structured `<meta>` block to the very top of AI responses, enabling instant 300ms metadata synchronization (confidence score, active questions, branch, and project title).
+  - Resolved 15.9s perceived latency freeze by slicing and rendering the live Markdown stream immediately after the closing `</meta>` tag.
+- **Deep Architectural Master Plan Specifications (`workspaceModeService.js`)**:
+  - Enhanced Step 2 system prompt to mandate structured Markdown tables (design tokens, component specifications, data schema models, phasing roadmap) and formatted ASCII/Mermaid component hierarchy diagrams.
+- **Iterative Plan Refinement Protocol (`workspaceModeService.js`)**:
+  - Added explicit instructions for the AI to seamlessly merge follow-up feedback and modifications into the existing plan (`visionContent`), preserving context and updating the Master Plan in real time.
 - **Real-Time Streaming Text Display (`ChatWorkspace.jsx`)**:
   - Fixed UI suppression bug where assistant messages were hidden behind a static "Thinking..." loader during streaming. Responses and markdown now render continuously in real time with an animated cursor.
   - Added live streaming status (`Generating response...`) and seamless `<meta>` stripping so structured command tags never flicker into the chat view.

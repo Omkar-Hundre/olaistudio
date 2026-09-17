@@ -266,6 +266,46 @@ const metaIdx = streamChunk1.search(/<meta/i);
 const streamClean = metaIdx !== -1 ? streamChunk1.slice(0, metaIdx).trim() : streamChunk1.trim();
 assert(streamClean === 'Hello! Let us build your pickle brand landing page.', 'Cleanly strips <meta from live streaming chunk');
 
+// Case J: <meta> block at the very TOP with rich Markdown tables & diagrams below
+const topMetaPayload = `<meta>
+{
+  "confidence_score": 95,
+  "suggested_title": "The Daily Dill Co.",
+  "current_branch": "Full Architecture",
+  "ready_for_vision": true,
+  "cta_label": "Cook",
+  "questions": []
+}
+</meta>
+
+# 🥒 The Daily Dill Co. - Master Architecture Plan
+
+## 1. Visual & Brand Identity Tokens
+| Role | Token Name | Hex Code | Tailwind Class | Usage |
+| :--- | :--- | :--- | :--- | :--- |
+| Primary | Deep Dill Green | #1E3A2B | bg-[#1E3A2B] | Navbar & Hero |
+| Accent | Brine Mustard | #E5A93C | bg-[#E5A93C] | Primary CTAs |
+
+\`\`\`mermaid
+graph TD
+  A[RootLayout] --> B[Hero]
+  A --> C[Pillars Grid]
+\`\`\`
+`;
+
+const parsedJ = parseSystemCommands(topMetaPayload);
+assert(parsedJ.commands !== null, 'Parses <meta> at the TOP successfully');
+assert(parsedJ.commands.confidence_score === 95, 'Extracts confidence_score 95 from top <meta>');
+assert(parsedJ.commands.ready_for_vision === true, 'Detects ready_for_vision from top <meta>');
+assert(parsedJ.cleanText.includes('Visual & Brand Identity Tokens'), 'Preserves Markdown tables in cleanText');
+assert(parsedJ.cleanText.includes('graph TD'), 'Preserves Mermaid diagrams in cleanText');
+assert(!parsedJ.cleanText.includes('<meta>') && !parsedJ.cleanText.includes('</meta>'), 'Strips top <meta> from cleanText');
+
+// In-stream chunk test when <meta> is at the top
+const chunkWithTopMetaClosed = topMetaPayload.slice(0, 300);
+const streamCleanTop = chunkWithTopMetaClosed.replace(/<meta>[\s\S]*?<\/meta>/i, '').trim();
+assert(streamCleanTop.startsWith('# 🥒 The Daily Dill Co.'), 'Immediate live stream extraction after top <meta> closes');
+
 // ==============================================================================
 // SUITE 4: 2-Step Protocol Pipeline State Machine
 // ==============================================================================

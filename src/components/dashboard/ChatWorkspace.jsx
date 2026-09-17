@@ -507,6 +507,7 @@ export default function ChatWorkspace({
 
     const startTime = performance.now();
     let firstChunkTime = null;
+    let metaExtractedDuringStream = false;
 
     try {
       await sendStreamingProxyChatMessage({
@@ -527,35 +528,67 @@ export default function ChatWorkspace({
           // Fluid real-time streaming: smoothly extract dialogue without freezing
           let cleanStreamingText = '';
 
-          const metaIdx = accumulatedFullText.search(/<meta/i);
-          const cmdIdx = accumulatedFullText.indexOf('%%%SYSTEM_CMD%%%');
+          // 1. Meta at the top: when </meta> arrives, strip it and stream the rest as pure markdown
+          if (accumulatedFullText.includes('</meta>')) {
+            cleanStreamingText = accumulatedFullText.replace(/<meta>[\s\S]*?<\/meta>/i, '').trim();
 
-          if (metaIdx !== -1) {
-            cleanStreamingText = accumulatedFullText.slice(0, metaIdx).trim();
-          } else if (cmdIdx !== -1) {
-            cleanStreamingText = accumulatedFullText.slice(0, cmdIdx).trim();
-          } else {
-            const greetingIdx = accumulatedFullText.indexOf('"greeting"');
-            if (greetingIdx !== -1) {
-              const afterKey = accumulatedFullText.slice(greetingIdx + 10);
-              const quoteStart = afterKey.indexOf('"');
-              if (quoteStart !== -1) {
-                let inProgress = afterKey.slice(quoteStart + 1);
-                const endMatch = inProgress.match(/"\s*(?:,\s*"[a-zA-Z_]+"|\s*})/);
-                if (endMatch) {
-                  inProgress = inProgress.slice(0, endMatch.index);
+            // Real-time metadata sync: immediately reflect confidence, branch, and questions
+            if (!metaExtractedDuringStream) {
+              const metaMatch = accumulatedFullText.match(/<meta>([\s\S]*?)<\/meta>/i);
+              if (metaMatch) {
+                metaExtractedDuringStream = true;
+                const liveCmds = safeJsonParse(metaMatch[1]);
+                if (liveCmds) {
+                  if (liveCmds.confidence_score !== undefined) {
+                    setAlignmentScore(liveCmds.confidence_score);
+                  }
+                  if (liveCmds.current_branch) {
+                    setCurrentBranch(liveCmds.current_branch);
+                  }
+                  if (liveCmds.questions && Array.isArray(liveCmds.questions) && liveCmds.questions.length > 0) {
+                    setActiveQuestions(liveCmds.questions);
+                  }
+                  if (liveCmds.suggested_title) {
+                    setSessionTitle(liveCmds.suggested_title);
+                  }
                 }
-                cleanStreamingText = inProgress
-                  .replace(/\\n/g, '\n')
-                  .replace(/\\"/g, '"')
-                  .replace(/\\\\/g, '\\');
               }
+            }
+          } else if (accumulatedFullText.trimStart().startsWith('<meta')) {
+            // <meta> is actively generating at the very top (takes ~300ms)
+            cleanStreamingText = '';
+          } else {
+            // Legacy format or bottom <meta>
+            const metaIdx = accumulatedFullText.search(/<meta/i);
+            const cmdIdx = accumulatedFullText.indexOf('%%%SYSTEM_CMD%%%');
+
+            if (metaIdx !== -1) {
+              cleanStreamingText = accumulatedFullText.slice(0, metaIdx).trim();
+            } else if (cmdIdx !== -1) {
+              cleanStreamingText = accumulatedFullText.slice(0, cmdIdx).trim();
             } else {
-              cleanStreamingText = accumulatedFullText
-                .replace(/^\s*```(?:json)?\s*/i, '')
-                .replace(/\s*```\s*$/, '')
-                .replace(/^\s*\{\s*/, '')
-                .trim();
+              const greetingIdx = accumulatedFullText.indexOf('"greeting"');
+              if (greetingIdx !== -1) {
+                const afterKey = accumulatedFullText.slice(greetingIdx + 10);
+                const quoteStart = afterKey.indexOf('"');
+                if (quoteStart !== -1) {
+                  let inProgress = afterKey.slice(quoteStart + 1);
+                  const endMatch = inProgress.match(/"\s*(?:,\s*"[a-zA-Z_]+"|\s*})/);
+                  if (endMatch) {
+                    inProgress = inProgress.slice(0, endMatch.index);
+                  }
+                  cleanStreamingText = inProgress
+                    .replace(/\\n/g, '\n')
+                    .replace(/\\"/g, '"')
+                    .replace(/\\\\/g, '\\');
+                }
+              } else {
+                cleanStreamingText = accumulatedFullText
+                  .replace(/^\s*```(?:json)?\s*/i, '')
+                  .replace(/\s*```\s*$/, '')
+                  .replace(/^\s*\{\s*/, '')
+                  .trim();
+              }
             }
           }
 
