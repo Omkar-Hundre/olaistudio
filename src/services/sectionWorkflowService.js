@@ -43,9 +43,10 @@ ${planText}`;
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        // Note: responseMimeType:'application/json' + thinkingBudget:0 = empty output error.
+        // We parse JSON manually from the text response instead.
         generationConfig: {
           thinkingConfig: { thinkingBudget: 0 },
-          responseMimeType: 'application/json',
         },
       }),
     });
@@ -55,7 +56,9 @@ ${planText}`;
     }
 
     const data = await res.json();
-    const rawJson = data.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+    let rawJson = data.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+    // Strip markdown code fences if present (model may wrap output without responseMimeType)
+    rawJson = rawJson.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
     const parsed = JSON.parse(rawJson);
 
     if (Array.isArray(parsed) && parsed.length > 0) {
@@ -104,13 +107,64 @@ export async function generateSectionContent({ section, plan }) {
   const apiKey = getActiveGeminiKey();
   if (!apiKey) throw new Error('API key missing');
 
-  const systemInstruction = `You are a Principal UI Engineer specializing in landing pages and modular frontend architecture.
-Strict Guardrails:
-1. Generate ONLY the clean, semantic HTML markup for the "${section.title}" using Tailwind CSS styling.
-2. Do NOT output a full <!DOCTYPE html> wrapper or enclosing <body> tags.
-3. Do NOT implement any other sections. Focus 100% on "${section.title}".
-4. Use modern, premium SaaS aesthetics: sleek typography, subtle borders (slate-200/zinc-800), generous padding, accessible contrast, and realistic copy.
-5. Return ONLY the code inside a standard html code block (\`\`\`html ... \`\`\`) with a 1-sentence friendly overview summary before it.`;
+  // ── Load design system rules from minimal-landing-page skill ──
+  const systemInstruction = `You are a senior UI engineer who designs minimal, premium landing page sections.
+
+DESIGN SYSTEM RULES (follow strictly):
+
+## Typography
+- Font: Inter (Google Fonts). Import it inline: <style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'); * { font-family: 'Inter', sans-serif; }</style>
+- Hero H1: font-size clamp(2.5rem,5vw,4.5rem); letter-spacing: -0.03em; font-weight: 700
+- Section H2: font-size clamp(1.75rem,3vw,2.75rem); letter-spacing: -0.02em; font-weight: 700
+- Body: font-size 1rem; line-height 1.625
+- Labels: 0.75rem, font-weight 500, letter-spacing 0.06em, text-transform uppercase
+
+## Colors (Dark Premium — use for all sections by default)
+- Background: bg-zinc-950 (#0A0A0A)
+- Surface cards: bg-zinc-900
+- Borders: border-zinc-800 or border-white/[0.08]
+- Text primary: text-zinc-50
+- Text muted: text-zinc-400 or text-zinc-500
+- CTA accent: bg-white text-black
+- If the brand has a distinct primary color (e.g. blue for a SaaS, gold for luxury), use it ONLY for the single primary CTA button
+
+## Spacing (8px grid — Tailwind classes)
+- Section: py-24 px-6 (desktop) — never less than py-16
+- Container: max-w-6xl mx-auto
+- Gap between grid items: gap-8
+- Headline → body copy: mt-6
+- Body → CTA: mt-10
+
+## Component Patterns
+Hero: eyebrow label (small caps, muted) → H1 → subtitle (max 2 lines) → CTA row (primary + ghost side-by-side)
+Features: 3-col md grid, each card: 24px icon → bold title → 2-line desc, bg-zinc-900 border border-zinc-800 rounded-xl p-6
+Testimonials: 3-col grid, quote text → author name → role — nothing extra
+CTA/Footer: full-width bg-zinc-950 invert section, large headline, single white button, clean nav links
+
+## STRICT ANTI-PATTERNS — NEVER USE ANY OF THESE:
+- animate-pulse / animate-bounce / animate-ping / animate-spin on ANY visible element
+- Multiple gradient directions, rainbow gradients, or gradient text with >2 colors
+- Blobs, morphing shapes, particle effects, geometric floating shapes
+- backdrop-blur glassmorphism on cards
+- More than 3 different font-size values in a single section
+- overflow-hidden on parent <section> elements
+- <script> tags or any JavaScript — output must be pure static HTML+Tailwind
+- Placeholder text like "Lorem ipsum" or src="placeholder.jpg"
+- Emoji in headings or body copy
+- Neon glow effects (text-shadow, box-shadow with colored glow)
+- Decorative dividers made of multiple colored lines
+- Cards with heavy shadow-lg or shadow-2xl
+
+## Output format:
+1. Write ONE sentence describing what this section achieves.
+2. Then write the HTML inside a \`\`\`html ... \`\`\` code block.
+3. The HTML must be a SINGLE <section> element — no <!DOCTYPE>, <html>, or <body> wrapper.
+4. Use realistic, on-brand copy — not placeholders.
+5. All styling via Tailwind utility classes only (Tailwind CDN is already loaded in the preview).
+6. Include the Inter font @import as an inline <style> tag inside the <section>.
+
+You are generating ONLY the "${section.title}" section. Do NOT generate any other section.`;
+
 
   const userPrompt = `Project Plan & Brand Context:
 ${plan}

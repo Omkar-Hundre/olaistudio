@@ -13,7 +13,7 @@
  * ==============================================================================
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { sendProxyChatMessage, sendStreamingProxyChatMessage } from '../../services/aiProxyService';
 import { getUserApiKeys } from '../../services/apiKeyService';
@@ -716,8 +716,8 @@ export default function ChatWorkspace({
 
     const interimAssistantMsg = {
       role: 'assistant',
-      content: "Decomposing plan into modular sections and launching parallel generation...",
-      displayContent: "Decomposing plan into modular sections and launching parallel generation...",
+      content: "Breaking your plan into sections and generating each one in parallel...",
+      displayContent: "Breaking your plan into sections and generating each one in parallel...",
       timestamp: new Date().toISOString(),
       modelName: selectedModel.name,
     };
@@ -851,6 +851,18 @@ export default function ChatWorkspace({
   };
 
   const isInitialEmptyState = messages.length === 0;
+
+  // Memoized: compute which message indices are finalized plans
+  // Avoids running detectFinalizedPlan() on every render for every message
+  const planMessageIndices = useMemo(() => {
+    const indices = new Set();
+    messages.forEach((msg, idx) => {
+      if (msg.role === 'assistant' && !msg.isStreaming && detectFinalizedPlan(msg.content)) {
+        indices.add(idx);
+      }
+    });
+    return indices;
+  }, [messages]);
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-y-auto bg-[#F8F9FA] dark:bg-[#13151A] transition-colors">
@@ -1002,7 +1014,7 @@ export default function ChatWorkspace({
                               <MarkdownRenderer content={msg.displayContent || msg.content} />
 
                               {/* Action Bar for Finalized Plans: Cook Button */}
-                              {detectFinalizedPlan(msg.content) && (
+                              {planMessageIndices.has(idx) && (
                                 <div className="mt-4 pt-3.5 border-t border-slate-200/90 dark:border-zinc-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-50/70 dark:bg-zinc-900/50 p-3.5 rounded-xl border border-slate-200/70 dark:border-zinc-800/80 shadow-xs">
                                   <div className="flex items-center gap-2.5">
                                     <div className="h-7 w-7 rounded-lg bg-slate-900 dark:bg-zinc-100 text-white dark:text-slate-900 flex items-center justify-center shadow-xs shrink-0">

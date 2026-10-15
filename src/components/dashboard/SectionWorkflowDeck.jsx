@@ -26,6 +26,14 @@ export default function SectionWorkflowDeck({
   const [copiedId, setCopiedId] = useState(null);
   const scrollRefs = useRef({});
 
+  // Auto-scroll each section card to bottom when its messages update
+  useEffect(() => {
+    sections.forEach(s => {
+      const el = scrollRefs.current[s.id];
+      if (el) el.scrollTop = el.scrollHeight;
+    });
+  }, [sections]);
+
   const handleInputChange = (sectionId, value) => {
     setInputs(prev => ({ ...prev, [sectionId]: value }));
   };
@@ -177,7 +185,7 @@ export default function SectionWorkflowDeck({
               {/* Card Chat Body */}
               <div
                 ref={el => (scrollRefs.current[section.id] = el)}
-                className="flex-1 h-[420px] overflow-y-auto p-4 space-y-3.5 text-xs text-slate-800 dark:text-zinc-200 custom-scrollbar"
+                className="min-h-[160px] max-h-[420px] overflow-y-auto p-4 space-y-3.5 text-xs text-slate-800 dark:text-zinc-200 custom-scrollbar"
               >
                 {isCodeTab ? (
                   <div className="p-3 bg-slate-950 rounded-xl font-mono text-[11px] text-zinc-300 overflow-x-auto">

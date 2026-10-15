@@ -82,7 +82,7 @@ export default function LandingPagePreviewModal({ isOpen, onClose, sections = []
       <div className="flex h-14 w-full shrink-0 items-center justify-between border-b border-slate-800 bg-slate-900/95 px-4 md:px-6">
         <div className="flex items-center gap-3 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
             <span className="text-xs sm:text-sm font-semibold text-white truncate max-w-[220px] sm:max-w-xs">
               {projectTitle} Preview
             </span>
@@ -171,13 +171,19 @@ export default function LandingPagePreviewModal({ isOpen, onClose, sections = []
 
       {/* Frame Container */}
       <div className="flex-1 overflow-auto bg-slate-950 p-3 sm:p-6 flex justify-center items-start">
+        {/* Device frame - constrains to viewport width */}
         <div
-          className={`h-full bg-white rounded-xl shadow-2xl overflow-hidden transition-all duration-300 border border-slate-800/80 ${viewportWidthClass}`}
+          style={{
+            width: viewport === 'desktop' ? '100%' : viewport === 'tablet' ? '768px' : '375px',
+            maxWidth: '100%',
+            height: '100%',
+          }}
+          className="bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-800/80 transition-all duration-300 flex flex-col"
         >
           <iframe
             title="Landing Page Live Preview"
             srcDoc={fullHtmlDocument}
-            className="w-full h-full border-0"
+            className="w-full flex-1 border-0"
             sandbox="allow-scripts allow-same-origin"
           />
         </div>

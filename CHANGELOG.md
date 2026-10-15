@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.13.0] - 2026-10-15
+
+- **Minimal Landing Page Design System Skill (`.agents/skills/minimal-landing-page/SKILL.md`)**: Created design system skill defining exact typography (Inter, clamp sizes, tight tracking), color palettes (Dark Premium / Light Minimal), 8px spacing grid, component patterns, and a strict anti-patterns list. Now embedded directly into the section generation system prompt.
+- **Section Generation Quality Fix (`sectionWorkflowService.js`)**: Replaced generic "Principal UI Engineer" system prompt with full minimal design system rules — enforces no pulsating animations, no rainbow gradients, no blobs, realistic copy, Inter font, and Tailwind-only output.
+- **Empty Output Fix (`sectionWorkflowService.js`)**: Removed `responseMimeType: 'application/json'` from decomposition call — incompatible with `thinkingBudget: 0`, caused empty candidate error. Added markdown code-fence stripping before JSON parse.
+- **Section Card Height Fix (`SectionWorkflowDeck.jsx`)**: Replaced fixed `h-[420px]` with `min-h-[160px] max-h-[420px]` — short sections no longer get giant empty cards.
+- **Section Card Auto-Scroll (`SectionWorkflowDeck.jsx`)**: Added `useEffect` to auto-scroll each card's message body to bottom when messages update.
+- **Viewport Switching Fix (`LandingPagePreviewModal.jsx`)**: Replaced CSS class-based `max-w` viewport switching (which had no visual effect on iframe) with inline `style.width` on the frame wrapper — tablet (768px) and mobile (375px) now visually differ from desktop.
+- **Pulsating Dot Removed (`LandingPagePreviewModal.jsx`)**: Removed `animate-pulse` from the live indicator dot in the preview modal header.
+- **Jargon Message Fixed (`ChatWorkspace.jsx`)**: Replaced internal "Decomposing plan into modular sections and launching parallel generation..." with clean user-facing copy.
+- **Memoized Plan Detection (`ChatWorkspace.jsx`)**: Moved `detectFinalizedPlan` out of per-message render loop into a `useMemo`-computed Set — eliminates redundant regex runs on every render of every message bubble.
+
 ## [2.12.0] - 2026-10-15
 
 - **Horizontal Modular Section Workflows & Batch Generation (`SectionWorkflowDeck.jsx`, `sectionWorkflowService.js`, `LandingPagePreviewModal.jsx`)**:
