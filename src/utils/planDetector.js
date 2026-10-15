@@ -22,8 +22,8 @@ export function detectFinalizedPlan(text) {
   const phaseMatches = text.match(/\b(?:Phase|Step|Milestone|Sprint)\s+\d+/gi);
   const phaseCount = phaseMatches ? phaseMatches.length : 0;
 
-  // 3. Numbered section structure — lines starting with "1.", "2.", "3." up to high numbers
-  const numberedSections = text.match(/^\s*\d{1,2}\.\s+[A-Z][^\n]{5,}/gm);
+  // 3. Numbered section structure — matches "1. Title", "1. **Bold Title**", etc.
+  const numberedSections = text.match(/^\s*\d{1,2}\.\s+\S/gm);
   const sectionCount = numberedSections ? numberedSections.length : 0;
 
   // 4. Landing page vocabulary signals
@@ -33,9 +33,12 @@ export function detectFinalizedPlan(text) {
   const hasPlanStructure = /\b(?:deliverables?|tech(?:nology)?\s+stack|roadmap|blueprint|implementation\s+phases?|release\s+criteria|acceptance\s+criteria)\b/i.test(text);
 
   // Decision matrix — any of these combos = it's a plan
-  const isNumberedSectionPlan = sectionCount >= 4 && (hasPlanHeader || hasLandingVocab);
-  const isClassicPhasePlan    = phaseCount >= 2 && (hasPlanHeader || hasPlanStructure);
+  const isNumberedSectionPlan  = sectionCount >= 4 && (hasPlanHeader || hasLandingVocab);
+  const isClassicPhasePlan     = phaseCount >= 2 && (hasPlanHeader || hasPlanStructure);
   const isLandingPageBlueprint = hasLandingVocab && sectionCount >= 3;
+  // Two strong independent signals together are always a plan
+  const isHeaderPlusVocab      = hasPlanHeader && hasLandingVocab;
 
-  return Boolean(isNumberedSectionPlan || isClassicPhasePlan || isLandingPageBlueprint);
+  return Boolean(isNumberedSectionPlan || isClassicPhasePlan || isLandingPageBlueprint || isHeaderPlusVocab);
+
 }
