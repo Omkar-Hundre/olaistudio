@@ -16,7 +16,7 @@ const FALLBACK_PLATFORM_MODELS = [
     id: 'olai-m1',
     name: 'Olai M1',
     provider: 'gemini',
-    rawModel: 'gemini-2.0-flash',
+    rawModel: 'gemini-2.5-flash',
     isPlatform: true,
     creditCost: 'Default • High-speed',
   },
@@ -48,7 +48,7 @@ export async function getPlatformModels() {
       id: model.id,
       name: model.name,
       provider: model.provider,
-      rawModel: (!model.raw_model || model.raw_model === 'gemini-3.6-flash') ? 'gemini-2.0-flash' : model.raw_model,
+      rawModel: (!model.raw_model || model.raw_model === 'gemini-3.6-flash' || model.raw_model === 'gemini-2.0-flash') ? 'gemini-2.5-flash' : model.raw_model,
       isPlatform: true,
       creditCost: model.credit_cost_label,
     }));

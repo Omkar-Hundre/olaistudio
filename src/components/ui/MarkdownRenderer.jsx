@@ -252,21 +252,17 @@ export default function MarkdownRenderer({ content, className = '' }) {
 
       if (level === 1) {
         elements.push(
-          <div key={`h1-${elements.length}`} className="mt-4 mb-3 pb-2 border-b border-slate-200 dark:border-zinc-800">
-            <h1 className="text-base sm:text-lg font-bold text-slate-950 dark:text-white tracking-tight flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-slate-900 dark:bg-zinc-100" />
+          <div key={`h1-${elements.length}`} className="mt-4 mb-2 pb-1.5 border-b border-slate-200 dark:border-zinc-800">
+            <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-50 tracking-tight">
               {renderInlineFormatting(title)}
             </h1>
           </div>
         );
       } else if (level === 2) {
         elements.push(
-          <div key={`h2-${elements.length}`} className="mt-5 mb-2.5">
-            <h2 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-zinc-100 tracking-tight flex items-center gap-2">
-              <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-[10px] font-mono font-semibold text-slate-700 dark:text-zinc-300 border border-slate-200/80 dark:border-zinc-700">
-                §
-              </span>
-              <span>{renderInlineFormatting(title)}</span>
+          <div key={`h2-${elements.length}`} className="mt-4 mb-1.5">
+            <h2 className="text-sm sm:text-base font-semibold text-slate-900 dark:text-zinc-100 tracking-tight">
+              {renderInlineFormatting(title)}
             </h2>
           </div>
         );
@@ -274,7 +270,7 @@ export default function MarkdownRenderer({ content, className = '' }) {
         elements.push(
           <h3
             key={`h3-${elements.length}`}
-            className="text-xs sm:text-[13px] font-semibold text-slate-800 dark:text-zinc-200 mt-3.5 mb-1.5"
+            className="text-xs sm:text-[13px] font-semibold text-slate-800 dark:text-zinc-200 mt-3 mb-1"
           >
             {renderInlineFormatting(title)}
           </h3>
@@ -307,8 +303,8 @@ export default function MarkdownRenderer({ content, className = '' }) {
       continue;
     }
 
-    // Lists (* item, - item, 1. item)
-    const bulletMatch = rawLine.match(/^(\s*)([*+-]|\d+\.)\s+(.+)$/);
+    // Lists (* item, - item, • item, 1. item)
+    const bulletMatch = rawLine.match(/^(\s*)([•*+-]|\d+\.)\s+(.+)$/);
     if (bulletMatch) {
       const indentSpaces = bulletMatch[1].length;
       const isOrdered = /^\d+\./.test(bulletMatch[2]);
@@ -328,6 +324,33 @@ export default function MarkdownRenderer({ content, className = '' }) {
       continue;
     } else {
       flushList();
+    }
+
+    // Structured Milestone / Phase Headers (e.g. "Phase 1: Discovery & Requirements")
+    const phaseMatch = trimmed.match(/^(Phase\s+\d+|Step\s+\d+|Sprint\s+\d+|Milestone\s+\d+):\s*(.*)$/i);
+    if (phaseMatch) {
+      elements.push(
+        <div key={`phase-${elements.length}`} className="mt-3.5 mb-1 text-xs sm:text-[13px] font-semibold text-slate-900 dark:text-zinc-100 flex items-center gap-1.5">
+          <span className="text-slate-950 dark:text-zinc-50">{phaseMatch[1]}:</span>
+          <span>{renderInlineFormatting(phaseMatch[2])}</span>
+        </div>
+      );
+      continue;
+    }
+
+    // Key-Value Pair Line (e.g. "Project Goal Definition: Clearly articulate...")
+    const kvMatch = trimmed.match(/^([A-Za-z0-9\s()/-]{2,35}:)\s+(.+)$/);
+    if (kvMatch && !trimmed.startsWith('http')) {
+      elements.push(
+        <p
+          key={`p-${elements.length}`}
+          className="text-xs sm:text-[13px] text-slate-700 dark:text-zinc-300 leading-relaxed my-1 pl-1"
+        >
+          <strong className="font-semibold text-slate-900 dark:text-zinc-100">{kvMatch[1]} </strong>
+          <span>{renderInlineFormatting(kvMatch[2])}</span>
+        </p>
+      );
+      continue;
     }
 
     // Standard Paragraph

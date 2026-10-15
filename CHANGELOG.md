@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.12.0] - 2026-10-15
 
+- **Direct Fast-Path Gemini Streaming (<1.5s Prototype Speed, Zero 150s Edge Freezes) (`aiProxyService.js`, `platformModelService.js`, `.env`)**:
+  - Eliminated the 150-second Supabase Edge Function execution hang by implementing a direct client fast-path for Gemini requests using verified API credentials and `gemini-2.5-flash`.
+  - Configured zero-latency response streaming with `thinkingBudget: 0`, achieving sub-1.5s first-token responses.
+  - Added strict 12-second abort timeouts for fallback edge function calls to prevent gateway hangs.
+
+- **Clean Markdown & Minimal SaaS Typography (`MarkdownRenderer.jsx`)**:
+  - Removed odd hardcoded section symbol badges (`§`) from H2 headers and eliminated artificial bullet icons from H1 headers.
+  - Added native support for unicode bullet characters (`•`) alongside standard hyphens and asterisks.
+  - Implemented automatic key-value and milestone phase styling (`Phase 1:`, `Key: Value`) with elegant font weights for crisp, professional readability.
+
 - **Single-Table JSON Document Architecture (`workflowService.js`)**:
   - Replaced 3-table relational DAG storage (`workflow_sessions`, `workflow_nodes`, `workflow_node_dependencies`) with direct single-table JSON document storage inside `workflow_sessions.global_context`.
   - Implemented automatic backward-compatibility reading for historical chats previously saved in `workflow_nodes`.

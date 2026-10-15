@@ -538,8 +538,8 @@ export default function ChatWorkspace({
       const cleanFocusTitle = cleanSuggestedTitle(sessionTitle || 'New Project') || 'New Project';
       const cleanBranch = cleanSuggestedTitle(currentBranch || 'Core Architecture') || 'Core Architecture';
 
-      const targetModel = (!selectedModel?.rawModel || selectedModel.rawModel === 'gemini-3.6-flash')
-        ? 'gemini-2.0-flash'
+      const targetModel = (!selectedModel?.rawModel || selectedModel.rawModel === 'gemini-3.6-flash' || selectedModel.rawModel === 'gemini-2.0-flash')
+        ? 'gemini-2.5-flash'
         : selectedModel.rawModel;
 
       await sendStreamingProxyChatMessage({
