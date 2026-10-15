@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.12.0] - 2026-10-15
 
+- **Intelligent Finalized Plan Detection & Instant "Cook" Action Button (`ChatWorkspace.jsx`, `workspaceModeService.js`)**:
+  - Implemented `detectFinalizedPlan` algorithm to recognize comprehensive project plans, multi-phase roadmaps, and architecture blueprints.
+  - Automatically attaches a sleek **"Cook"** action card directly under finalized plan messages with a single-click trigger.
+  - Automatically sets alignment score to 95% and persists `vision_content` to the session JSON.
+  - Clicking "Cook" decomposes the plan and immediately initiates stage execution ("Plan approved. Let's begin building!").
+
 - **Direct Fast-Path Gemini Streaming (<1.5s Prototype Speed, Zero 150s Edge Freezes) (`aiProxyService.js`, `platformModelService.js`, `.env`)**:
   - Eliminated the 150-second Supabase Edge Function execution hang by implementing a direct client fast-path for Gemini requests using verified API credentials and `gemini-2.5-flash`.
   - Configured zero-latency response streaming with `thinkingBudget: 0`, achieving sub-1.5s first-token responses.

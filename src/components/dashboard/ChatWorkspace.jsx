@@ -50,6 +50,7 @@ import {
   SendHorizontal,
   RotateCw,
   Trash2,
+  ArrowRight,
 } from 'lucide-react';
 
 const MODE_ICONS = {
@@ -125,6 +126,25 @@ function formatContentForDisplay(rawText) {
   }
 
   return rawText;
+}
+
+/**
+ * Detects whether message content represents a finalized comprehensive plan
+ */
+export function detectFinalizedPlan(text) {
+  if (!text || typeof text !== 'string') return false;
+
+  // Header or title pattern: Project Plan, Architecture Plan, Implementation Plan, etc.
+  const hasPlanHeader = /(?:##\s+)?(?:\*\*)?(?:Project Plan|Comprehensive Plan|Implementation Roadmap|Development Plan|Architectural Plan|System Plan|Execution Plan|Landing Page Plan)/i.test(text);
+
+  // Multiple phases, milestones, or steps
+  const phaseMatches = text.match(/(?:Phase\s+\d+|Step\s+\d+|Milestone\s+\d+|Sprint\s+\d+)/gi);
+  const phaseCount = phaseMatches ? phaseMatches.length : 0;
+
+  // Plan structural keywords
+  const hasPlanStructure = /(?:deliverables?|tech(?:nology)?\s+stack|roadmap|development roadmap|deliverable:)/i.test(text);
+
+  return Boolean((hasPlanHeader && phaseCount >= 2) || (phaseCount >= 3 && hasPlanStructure) || (hasPlanHeader && hasPlanStructure));
 }
 
 export default function ChatWorkspace({
@@ -607,6 +627,14 @@ export default function ChatWorkspace({
             setSessionTitle(finalTitle);
           }
 
+          // Automatically detect if this response is a finalized comprehensive plan
+          const isPlan = detectFinalizedPlan(finalContent);
+          const effectiveScore = isPlan ? 95 : finalScore;
+          if (isPlan) {
+            setVisionContent(finalContent);
+            setAlignmentScore(95);
+          }
+
           const formattedDisplay = formatContentForDisplay(finalContent);
 
           const finalAssistantMessage = {
@@ -627,8 +655,9 @@ export default function ChatWorkspace({
             saveRootSessionState({
               sessionId: activeSessionId,
               messages: finalHistory,
-              confidenceScore: finalScore,
+              confidenceScore: effectiveScore,
               title: finalTitle,
+              visionContent: isPlan ? finalContent : visionContent,
             });
 
             if (onSessionCreated) {
@@ -660,8 +689,12 @@ export default function ChatWorkspace({
     }
   };
 
-  const handleProceedExecution = async () => {
-    if (isExecuting || !visionContent) return;
+  const handleProceedExecution = async (customPlan) => {
+    const planToExecute = (typeof customPlan === 'string' && customPlan.trim())
+      ? customPlan.trim()
+      : (visionContent || messages.filter(m => m.role === 'assistant').pop()?.content || '');
+
+    if (isExecuting || !planToExecute) return;
     setIsExecuting(true);
 
     const activeSessionId = sessionIdRef.current;
@@ -669,13 +702,17 @@ export default function ChatWorkspace({
       // Mark workflow_sessions as executing
       await updateWorkflowSession(activeSessionId, {
         status: 'executing',
+        vision_content: planToExecute,
+        confidence_score: 95,
         updated_at: new Date().toISOString(),
       });
+      setVisionContent(planToExecute);
+      setAlignmentScore(95);
     }
 
     // Dispatch execution prompt to initiate stage execution
     handleSendMessage(
-      `Plan finalized. Please decompose this plan into immediate implementation milestones:\n\n${visionContent}`,
+      `Plan finalized. Please decompose this plan into immediate implementation milestones:\n\n${planToExecute}`,
       "Plan approved. Let's begin building!"
     );
   };
@@ -874,7 +911,37 @@ export default function ChatWorkspace({
                               {msg.displayContent || msg.content}
                             </p>
                           ) : (
-                            <MarkdownRenderer content={msg.displayContent || msg.content} />
+                            <>
+                              <MarkdownRenderer content={msg.displayContent || msg.content} />
+
+                              {/* Action Bar for Finalized Plans: Cook Button */}
+                              {detectFinalizedPlan(msg.content) && (
+                                <div className="mt-4 pt-3.5 border-t border-slate-200/90 dark:border-zinc-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-50/70 dark:bg-zinc-900/50 p-3.5 rounded-xl border border-slate-200/70 dark:border-zinc-800/80 shadow-xs">
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="h-7 w-7 rounded-lg bg-slate-900 dark:bg-zinc-100 text-white dark:text-slate-900 flex items-center justify-center shadow-xs shrink-0">
+                                      <Sparkles className="h-3.5 w-3.5" />
+                                    </div>
+                                    <div>
+                                      <div className="text-xs font-semibold text-slate-900 dark:text-zinc-100">
+                                        Plan Finalized
+                                      </div>
+                                      <div className="text-[11px] text-slate-500 dark:text-zinc-400">
+                                        Architecture & roadmap ready for implementation
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleProceedExecution(msg.content)}
+                                    disabled={isExecuting}
+                                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 dark:bg-zinc-100 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-zinc-200 text-xs font-semibold shadow-xs transition-all cursor-pointer disabled:opacity-50 shrink-0"
+                                  >
+                                    <span>Cook</span>
+                                    <ArrowRight className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              )}
+                            </>
                           )}
                         </>
                       )}
@@ -942,8 +1009,8 @@ export default function ChatWorkspace({
               </div>
             )}
 
-            {/* Synthesized Master Vision Card */}
-            {visionContent && (
+            {/* Synthesized Master Vision Card (shown if visionContent exists and not already displayed inline on the message) */}
+            {visionContent && !messages.some(m => !m.isStreaming && detectFinalizedPlan(m.content)) && (
               <VisionCard
                 visionContent={visionContent}
                 ctaLabel={ctaLabel}
