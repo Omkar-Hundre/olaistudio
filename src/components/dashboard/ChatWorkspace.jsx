@@ -28,6 +28,7 @@ import { supabase } from '../../lib/supabase';
 import VisionCard from './VisionCard';
 import DevPayloadInspector from './DevPayloadInspector';
 import MarkdownRenderer from '../ui/MarkdownRenderer';
+import { detectFinalizedPlan } from '../../utils/planDetector';
 import {
   Paperclip,
   ArrowUp,
@@ -126,25 +127,6 @@ function formatContentForDisplay(rawText) {
   }
 
   return rawText;
-}
-
-/**
- * Detects whether message content represents a finalized comprehensive plan
- */
-export function detectFinalizedPlan(text) {
-  if (!text || typeof text !== 'string') return false;
-
-  // Header or title pattern: Project Plan, Architecture Plan, Implementation Plan, etc.
-  const hasPlanHeader = /(?:##\s+)?(?:\*\*)?(?:Project Plan|Comprehensive Plan|Implementation Roadmap|Development Plan|Architectural Plan|System Plan|Execution Plan|Landing Page Plan)/i.test(text);
-
-  // Multiple phases, milestones, or steps
-  const phaseMatches = text.match(/(?:Phase\s+\d+|Step\s+\d+|Milestone\s+\d+|Sprint\s+\d+)/gi);
-  const phaseCount = phaseMatches ? phaseMatches.length : 0;
-
-  // Plan structural keywords
-  const hasPlanStructure = /(?:deliverables?|tech(?:nology)?\s+stack|roadmap|development roadmap|deliverable:)/i.test(text);
-
-  return Boolean((hasPlanHeader && phaseCount >= 2) || (phaseCount >= 3 && hasPlanStructure) || (hasPlanHeader && hasPlanStructure));
 }
 
 export default function ChatWorkspace({
