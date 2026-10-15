@@ -9,7 +9,9 @@
 
 import { getActiveGeminiKey } from './aiProxyService';
 
-const GEMINI_MODEL = 'gemini-2.5-flash';
+// gemini-2.0-flash: 1500 req/day free tier (vs gemini-2.5-flash: 20 req/day)
+// Section generation uses 2.0-flash to avoid exhausting the daily quota.
+const GEMINI_MODEL = 'gemini-2.0-flash';
 
 /**
  * Decomposes a project plan into 3-6 modular implementation sections

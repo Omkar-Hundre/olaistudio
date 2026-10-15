@@ -748,9 +748,11 @@ export default function ChatWorkspace({
         });
       }
 
-      // 2. Perform parallel batch call to generate all sections
-      await Promise.all(
-        initialSections.map(async (sec) => {
+      // 2. Staggered generation — start each section 300ms apart to avoid rate limit bursts.
+      // Sections still complete in parallel (each awaits independently), but the API calls
+      // are not all fired in the same millisecond.
+      const generateWithDelay = (sec, idx) => new Promise(resolve => {
+        setTimeout(async () => {
           try {
             const markup = await generateSectionContent({ section: sec, plan: planToExecute });
             setSections(prev => {
@@ -776,8 +778,12 @@ export default function ChatWorkspace({
             console.error(`Generation error for ${sec.title}:`, err);
             setSections(prev => prev.map(s => s.id === sec.id ? { ...s, isGenerating: false, error: err.message } : s));
           }
-        })
-      );
+          resolve();
+        }, idx * 300); // 300ms stagger between each section start
+      });
+
+      await Promise.all(initialSections.map((sec, idx) => generateWithDelay(sec, idx)));
+
     } catch (err) {
       console.error('Failed to decompose plan into sections:', err);
       setErrorMessage(err.message || 'Failed to decompose plan into sections');
