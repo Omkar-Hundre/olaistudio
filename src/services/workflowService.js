@@ -62,7 +62,12 @@ export async function getWorkflowSession(sessionId) {
 
     // Direct JSON document retrieval from global_context
     if (data?.global_context?.messages && Array.isArray(data.global_context.messages)) {
-      return { session: data, messages: data.global_context.messages, error: null };
+      return {
+        session: data,
+        messages: data.global_context.messages,
+        sections: data.global_context.sections || [],
+        error: null,
+      };
     }
 
     // Graceful backward-compatibility fallback for legacy rows in workflow_nodes
@@ -140,19 +145,31 @@ export async function saveRootSessionState({
   messages = [],
   confidenceScore = 35,
   title = null,
+  sections = null,
+  visionContent = null,
 }) {
   if (!sessionId) return { success: false, error: 'Session ID required' };
   try {
+    const globalContext = {
+      messages,
+      confidenceScore,
+      lastUpdated: new Date().toISOString(),
+    };
+
+    if (sections && Array.isArray(sections)) {
+      globalContext.sections = sections;
+    }
+
     const updatePayload = {
       confidence_score: confidenceScore,
-      status: confidenceScore >= 95 ? 'completed' : 'interviewing',
-      global_context: {
-        messages,
-        confidenceScore,
-        lastUpdated: new Date().toISOString(),
-      },
+      status: confidenceScore >= 95 ? 'executing' : 'interviewing',
+      global_context: globalContext,
       updated_at: new Date().toISOString(),
     };
+
+    if (visionContent) {
+      updatePayload.vision_content = visionContent;
+    }
 
     if (title && title !== 'New Session' && title !== 'New Conversation') {
       updatePayload.title = title;

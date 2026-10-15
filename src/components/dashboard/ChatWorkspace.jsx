@@ -26,9 +26,12 @@ import { cleanSuggestedTitle } from '../../utils/systemCommandParser';
 import { createWorkflowSession, updateWorkflowSession, getWorkflowSession, saveRootSessionState } from '../../services/workflowService';
 import { supabase } from '../../lib/supabase';
 import VisionCard from './VisionCard';
+import SectionWorkflowDeck from './SectionWorkflowDeck';
+import LandingPagePreviewModal from './LandingPagePreviewModal';
 import DevPayloadInspector from './DevPayloadInspector';
 import MarkdownRenderer from '../ui/MarkdownRenderer';
 import { detectFinalizedPlan } from '../../utils/planDetector';
+import { decomposePlanIntoSections, generateSectionContent } from '../../services/sectionWorkflowService';
 import {
   Paperclip,
   ArrowUp,
@@ -155,6 +158,11 @@ export default function ChatWorkspace({
   const [ctaLabel, setCtaLabel] = useState('Cook');
   const [isExecuting, setIsExecuting] = useState(false);
 
+  // Modular Sections & Preview State
+  const [sections, setSections] = useState([]);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [isDecomposing, setIsDecomposing] = useState(false);
+
   // Active Mode State
   const [activeMode, setActiveMode] = useState(null);
   const currentLoadedSessionIdRef = useRef(activeSessionId);
@@ -183,6 +191,11 @@ export default function ChatWorkspace({
           if (session.vision_content) {
             setVisionContent(session.vision_content);
           }
+          if (session.global_context?.sections && Array.isArray(session.global_context.sections)) {
+            setSections(session.global_context.sections);
+          } else {
+            setSections([]);
+          }
         }
         if (loadedMessages && Array.isArray(loadedMessages)) {
           const normalized = loadedMessages.map((m) => ({
@@ -194,6 +207,8 @@ export default function ChatWorkspace({
       });
     } else {
       setMessages([]);
+      setSections([]);
+      setIsPreviewModalOpen(false);
       setAlignmentScore(null);
       setCurrentBranch('');
       setActiveQuestions([]);
@@ -678,10 +693,10 @@ export default function ChatWorkspace({
 
     if (isExecuting || !planToExecute) return;
     setIsExecuting(true);
+    setIsDecomposing(true);
 
     const activeSessionId = sessionIdRef.current;
     if (activeSessionId) {
-      // Mark workflow_sessions as executing
       await updateWorkflowSession(activeSessionId, {
         status: 'executing',
         vision_content: planToExecute,
@@ -692,11 +707,101 @@ export default function ChatWorkspace({
       setAlignmentScore(95);
     }
 
-    // Dispatch execution prompt to initiate stage execution
-    handleSendMessage(
-      `Plan finalized. Please decompose this plan into immediate implementation milestones:\n\n${planToExecute}`,
-      "Plan approved. Let's begin building!"
-    );
+    const approvalUserMsg = {
+      role: 'user',
+      content: "Plan approved. Let's begin building!",
+      displayContent: "Plan approved. Let's begin building!",
+      timestamp: new Date().toISOString(),
+    };
+
+    const interimAssistantMsg = {
+      role: 'assistant',
+      content: "Decomposing plan into modular sections and launching parallel generation...",
+      displayContent: "Decomposing plan into modular sections and launching parallel generation...",
+      timestamp: new Date().toISOString(),
+      modelName: selectedModel.name,
+    };
+
+    const historyWithApproval = [...messages, approvalUserMsg, interimAssistantMsg];
+    setMessages(historyWithApproval);
+
+    try {
+      // 1. Decompose plan into modular section specs
+      const decomposedSpecs = await decomposePlanIntoSections(planToExecute);
+      const initialSections = decomposedSpecs.map(spec => ({
+        ...spec,
+        content: '',
+        messages: [],
+        isGenerating: true,
+      }));
+
+      setSections(initialSections);
+      setIsDecomposing(false);
+
+      if (activeSessionId) {
+        saveRootSessionState({
+          sessionId: activeSessionId,
+          messages: historyWithApproval,
+          confidenceScore: 95,
+          sections: initialSections,
+          visionContent: planToExecute,
+        });
+      }
+
+      // 2. Perform parallel batch call to generate all sections
+      await Promise.all(
+        initialSections.map(async (sec) => {
+          try {
+            const markup = await generateSectionContent({ section: sec, plan: planToExecute });
+            setSections(prev => {
+              const updated = prev.map(s => s.id === sec.id ? {
+                ...s,
+                content: markup,
+                messages: [{ role: 'assistant', content: markup, timestamp: new Date().toISOString() }],
+                isGenerating: false,
+              } : s);
+
+              if (activeSessionId) {
+                saveRootSessionState({
+                  sessionId: activeSessionId,
+                  messages: historyWithApproval,
+                  confidenceScore: 95,
+                  sections: updated,
+                  visionContent: planToExecute,
+                });
+              }
+              return updated;
+            });
+          } catch (err) {
+            console.error(`Generation error for ${sec.title}:`, err);
+            setSections(prev => prev.map(s => s.id === sec.id ? { ...s, isGenerating: false, error: err.message } : s));
+          }
+        })
+      );
+    } catch (err) {
+      console.error('Failed to decompose plan into sections:', err);
+      setErrorMessage(err.message || 'Failed to decompose plan into sections');
+    } finally {
+      setIsExecuting(false);
+      setIsDecomposing(false);
+    }
+  };
+
+  const handleUpdateSection = (sectionId, updates) => {
+    setSections(prev => {
+      const next = prev.map(s => s.id === sectionId ? { ...s, ...updates } : s);
+      const activeSessionId = sessionIdRef.current;
+      if (activeSessionId) {
+        saveRootSessionState({
+          sessionId: activeSessionId,
+          messages,
+          confidenceScore: alignmentScore || 95,
+          sections: next,
+          visionContent,
+        });
+      }
+      return next;
+    });
   };
 
   const handleUpdatePlan = async (newPlanContent) => {
@@ -999,6 +1104,16 @@ export default function ChatWorkspace({
                 onProceed={handleProceedExecution}
                 onUpdatePlan={handleUpdatePlan}
                 isExecuting={isExecuting}
+              />
+            )}
+
+            {/* Modular Section Workflows Deck (Horizontal parallel worker bubbles) */}
+            {sections.length > 0 && (
+              <SectionWorkflowDeck
+                sections={sections}
+                onUpdateSection={handleUpdateSection}
+                onOpenPreview={() => setIsPreviewModalOpen(true)}
+                projectTitle={sessionTitle}
               />
             )}
 
@@ -1347,6 +1462,14 @@ export default function ChatWorkspace({
         activeQuestions={activeQuestions}
         selectedModel={selectedModel}
         sessionId={sessionId}
+      />
+
+      {/* Landing Page Live Preview Modal with Multi-Device Viewport */}
+      <LandingPagePreviewModal
+        isOpen={isPreviewModalOpen}
+        onClose={() => setIsPreviewModalOpen(false)}
+        sections={sections}
+        projectTitle={sessionTitle}
       />
 
     </div>

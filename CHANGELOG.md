@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.12.0] - 2026-10-15
 
+- **Horizontal Modular Section Workflows & Batch Generation (`SectionWorkflowDeck.jsx`, `sectionWorkflowService.js`, `LandingPagePreviewModal.jsx`)**:
+  - Replaced monolithic chat outputs upon clicking "Cook" with an interactive horizontal deck of modular section worker cards.
+  - Decomposes the approved plan into 4-6 distinct, guarded implementation sections (e.g. Hero, Features, Showcase, Social Proof, Footer).
+  - Executes parallel batch calls via Gemini API to generate production-ready HTML/Tailwind markup for each section simultaneously.
+  - Equips each section card with its own isolated conversational chat input bar for independent, section-level iterations.
+  - Added **"Preview Landing Page"** live interactive modal with responsive device viewports (Desktop, Tablet, Mobile) and full HTML export.
+
 - **Intelligent Finalized Plan Detection & Instant "Cook" Action Button (`ChatWorkspace.jsx`, `workspaceModeService.js`)**:
   - Implemented `detectFinalizedPlan` algorithm to recognize comprehensive project plans, multi-phase roadmaps, and architecture blueprints.
   - Automatically attaches a sleek **"Cook"** action card directly under finalized plan messages with a single-click trigger.
