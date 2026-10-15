@@ -2,26 +2,40 @@
  * ==============================================================================
  * Utility: planDetector
  * ==============================================================================
- * Detects whether chat content represents a finalized comprehensive project plan.
- * Matches:
- * - Standard plan headers: '## Project Plan: ...', 'Comprehensive Plan', 'Implementation Roadmap'
- * - Multi-phase breakdown: Phase 1, Phase 2, etc. (at least 2 phases)
- * - Structural keywords: Deliverables, Tech stack, Roadmap
+ * Detects whether a chat response is a finalized comprehensive project plan.
+ * Signals checked (any strong combo triggers a true):
+ *  - Plan headers: "Project Plan", "Landing Page Plan", "Optimized ... Plan", etc.
+ *  - Numbered section structure: 4+ sequential numbered items (1. … 2. … 3. …)
+ *  - Phase/Step/Milestone counts: Phase 1 / Step 1 / Milestone 1 (≥2 matches)
+ *  - Landing page vocabulary: Hero, CTA, Footer, Testimonial, Navigation
+ *  - Structural plan keywords: Deliverables, Tech Stack, Roadmap, Blueprint
  * ==============================================================================
  */
 
 export function detectFinalizedPlan(text) {
-  if (!text || typeof text !== 'string') return false;
+  if (!text || typeof text !== 'string' || text.length < 200) return false;
 
-  // Header or title pattern: Project Plan, Architecture Plan, Implementation Plan, etc.
-  const hasPlanHeader = /(?:##\s+)?(?:\*\*)?(?:Project Plan|Comprehensive Plan|Implementation Roadmap|Development Plan|Architectural Plan|System Plan|Execution Plan|Landing Page Plan)/i.test(text);
+  // 1. Plan header — broad, covers "## Project Plan:", "Optimized Landing Page Plan: X", etc.
+  const hasPlanHeader = /(?:(?:##|###|\*\*)\s*)?(?:optimized\s+)?(?:project|landing\s+page|architecture|implementation|development|execution|comprehensive|system|product|design)\s+plan\b/i.test(text);
 
-  // Multiple phases, milestones, or steps
-  const phaseMatches = text.match(/(?:Phase\s+\d+|Step\s+\d+|Milestone\s+\d+|Sprint\s+\d+)/gi);
+  // 2. Phase / Step / Milestone / Sprint counts (classic decomposition)
+  const phaseMatches = text.match(/\b(?:Phase|Step|Milestone|Sprint)\s+\d+/gi);
   const phaseCount = phaseMatches ? phaseMatches.length : 0;
 
-  // Plan structural keywords
-  const hasPlanStructure = /(?:deliverables?|tech(?:nology)?\s+stack|roadmap|development roadmap|deliverable:)/i.test(text);
+  // 3. Numbered section structure — lines starting with "1.", "2.", "3." up to high numbers
+  const numberedSections = text.match(/^\s*\d{1,2}\.\s+[A-Z][^\n]{5,}/gm);
+  const sectionCount = numberedSections ? numberedSections.length : 0;
 
-  return Boolean((hasPlanHeader && phaseCount >= 2) || (phaseCount >= 3 && hasPlanStructure) || (hasPlanHeader && hasPlanStructure));
+  // 4. Landing page vocabulary signals
+  const hasLandingVocab = /\b(?:hero\s+section|navigation\s+bar|cta\s+(?:button|banner)|footer|testimonial|social\s+proof|trust\s+(?:strip|badge)|faq\s+section|pricing\s+(?:section|page))\b/i.test(text);
+
+  // 5. Generic plan structure keywords
+  const hasPlanStructure = /\b(?:deliverables?|tech(?:nology)?\s+stack|roadmap|blueprint|implementation\s+phases?|release\s+criteria|acceptance\s+criteria)\b/i.test(text);
+
+  // Decision matrix — any of these combos = it's a plan
+  const isNumberedSectionPlan = sectionCount >= 4 && (hasPlanHeader || hasLandingVocab);
+  const isClassicPhasePlan    = phaseCount >= 2 && (hasPlanHeader || hasPlanStructure);
+  const isLandingPageBlueprint = hasLandingVocab && sectionCount >= 3;
+
+  return Boolean(isNumberedSectionPlan || isClassicPhasePlan || isLandingPageBlueprint);
 }
