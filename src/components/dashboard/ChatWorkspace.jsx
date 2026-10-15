@@ -547,7 +547,7 @@ export default function ChatWorkspace({
         provider: selectedModel.provider,
         model: targetModel,
         systemPrompt: activeMode?.systemPrompt || DEFAULT_WORKSPACE_MODES[0].systemPrompt,
-        globalContext: visionContent ? `[Current Project Vision & Approved Plan]\n${visionContent}` : `[Project Focus]: ${cleanFocusTitle}`,
+        globalContext: visionContent ? `[Current Project Vision & Approved Plan]\n${visionContent}` : '',
         parentContext: currentBranch ? `[Current Focus Area]: ${cleanBranch} (Alignment: ${alignmentScore || 35}%)` : '',
         isPlatform: selectedModel.isPlatform !== false,
         responseFormat: 'text',

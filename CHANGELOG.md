@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `formatContentForDisplay` in `ChatWorkspace.jsx` to seamlessly parse and render JSON responses into beautiful, direct Markdown with conversational greetings and inline lettered questionnaire options right in the response feed.
   - Ensured system prompts are never empty even when users chat without selecting an active mode pill.
 
+- **Natural Conversational Flow & Fast Chat (`workspaceModeService.js`, `ChatWorkspace.jsx`)**:
+  - Replaced rigid triage templates with a natural, human conversational flow (like ChatGPT/Claude).
+  - Simple greetings like "hi" or "hello" now receive warm, brief 1-2 sentence responses without unsolicited questionnaires or heavy templates.
+  - Removed artificial project focus context injection on fresh sessions so simple chats stay lightweight, direct, and instantaneous.
+
 ---
 
 ## [2.11.0] - 2026-09-17

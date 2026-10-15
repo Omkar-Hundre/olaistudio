@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
       parentContext = "",
       isPlatform = true,
       stream = false,
-      responseFormat = "json",
+      responseFormat = "text",
     } = await req.json();
 
     // Construct full 3-level system instruction
@@ -197,17 +197,13 @@ Deno.serve(async (req) => {
           };
         }
 
-        const candidateModels = Array.from(new Set([model, "gemini-3.6-flash", "gemini-2.5-flash", "gemini-flash-latest"]));
+        const candidateModels = Array.from(new Set([model, "gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash"]));
         let upstreamRes: Response | null = null;
         let lastErrText = "";
 
         for (const candidate of candidateModels) {
           const candidateGenConfig = { ...generationConfig };
-          if (candidate.includes("2.5-flash") || candidate.includes("2.0-flash")) {
-            candidateGenConfig.thinking_config = { thinking_budget: 0 };
-          } else {
-            delete candidateGenConfig.thinking_config;
-          }
+          candidateGenConfig.thinking_config = { thinking_budget: 0 };
 
           const candidateReqBody: any = {
             contents: geminiContents,
@@ -458,17 +454,13 @@ Deno.serve(async (req) => {
         temperature: 0.7,
       };
 
-      const candidateModels = Array.from(new Set([model, "gemini-3.6-flash", "gemini-2.5-flash", "gemini-flash-latest"]));
+      const candidateModels = Array.from(new Set([model, "gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash"]));
       let geminiRes: Response | null = null;
       let lastErrText = "";
 
       for (const candidate of candidateModels) {
         const candidateSyncConfig = { ...syncGenerationConfig };
-        if (candidate === "gemini-2.5-flash") {
-          candidateSyncConfig.thinking_config = { thinking_budget: 0 };
-        } else {
-          delete candidateSyncConfig.thinking_config;
-        }
+        candidateSyncConfig.thinking_config = { thinking_budget: 0 };
 
         const candidateReqBody: any = {
           contents: geminiContents,
