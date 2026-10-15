@@ -66,6 +66,67 @@ const DEFAULT_PLACEHOLDERS = [
   'Break down a complex engineering task into stages...',
 ];
 
+/**
+ * Ensures AI response is formatted into human-readable Markdown with inline questions.
+ * Handles both natural Markdown and legacy JSON formats seamlessly.
+ */
+function formatContentForDisplay(rawText) {
+  if (!rawText || typeof rawText !== 'string') return '';
+  const trimmed = rawText.trim();
+
+  // If already clean Markdown, return as is
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('```json')) {
+    return rawText;
+  }
+
+  // Handle JSON response: convert structured fields into clean markdown
+  try {
+    const clean = trimmed.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+    const parsed = JSON.parse(clean);
+
+    const parts = [];
+    if (parsed.greeting) {
+      parts.push(parsed.greeting);
+    }
+
+    const questions = parsed.questions || [];
+    if (Array.isArray(questions) && questions.length > 0) {
+      const qLines = ['\n### 🎯 Clarifying Questions & Options\n'];
+      questions.forEach((q, idx) => {
+        const qText = q.question || q.question_text || '';
+        if (!qText) return;
+        qLines.push(`**${idx + 1}. ${qText}**`);
+        const opts = Array.isArray(q.options) ? q.options : [];
+        if (opts.length > 0) {
+          opts.forEach((opt, optIdx) => {
+            const letter = String.fromCharCode(65 + optIdx);
+            qLines.push(`- **${letter})** ${opt}`);
+          });
+        }
+        qLines.push('');
+      });
+      parts.push(qLines.join('\n').trim());
+    }
+
+    const plan = parsed.planmarkdown || parsed.plan_markdown;
+    if (plan && plan.length > 20) {
+      parts.push(`\n---\n\n${plan}`);
+    }
+
+    if (parts.length > 0) {
+      return parts.join('\n\n').trim();
+    }
+  } catch {
+    // During live streaming, extract in-progress greeting so user sees text immediately
+    const greetingMatch = trimmed.match(/"greeting"\s*:\s*"((?:[^"\\]|\\.)*)/i);
+    if (greetingMatch) {
+      return greetingMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
+    }
+  }
+
+  return rawText;
+}
+
 export default function ChatWorkspace({
   activeSessionId = null,
   onCreditDeducted,
@@ -122,7 +183,11 @@ export default function ChatWorkspace({
           }
         }
         if (loadedMessages && Array.isArray(loadedMessages)) {
-          setMessages(loadedMessages);
+          const normalized = loadedMessages.map((m) => ({
+            ...m,
+            displayContent: formatContentForDisplay(m.displayContent || m.content),
+          }));
+          setMessages(normalized);
         }
       });
     } else {
@@ -473,11 +538,15 @@ export default function ChatWorkspace({
       const cleanFocusTitle = cleanSuggestedTitle(sessionTitle || 'New Project') || 'New Project';
       const cleanBranch = cleanSuggestedTitle(currentBranch || 'Core Architecture') || 'Core Architecture';
 
+      const targetModel = (!selectedModel?.rawModel || selectedModel.rawModel === 'gemini-3.6-flash')
+        ? 'gemini-2.0-flash'
+        : selectedModel.rawModel;
+
       await sendStreamingProxyChatMessage({
         messages: apiPayload,
         provider: selectedModel.provider,
-        model: selectedModel.rawModel,
-        systemPrompt: activeMode?.systemPrompt || '',
+        model: targetModel,
+        systemPrompt: activeMode?.systemPrompt || DEFAULT_WORKSPACE_MODES[0].systemPrompt,
         globalContext: visionContent ? `[Current Project Vision & Approved Plan]\n${visionContent}` : `[Project Focus]: ${cleanFocusTitle}`,
         parentContext: currentBranch ? `[Current Focus Area]: ${cleanBranch} (Alignment: ${alignmentScore || 35}%)` : '',
         isPlatform: selectedModel.isPlatform !== false,
@@ -487,19 +556,21 @@ export default function ChatWorkspace({
             firstChunkTime = performance.now();
           }
 
-          // Live alignment score extraction from direct markdown
-          const scoreMatch = accumulatedFullText.match(/(?:Alignment|Confidence)(?:\s*Score)?[:\s]*\*?\*?\s*(\d+)%/i);
+          // Live alignment score extraction (supports both markdown and JSON schemas)
+          const scoreMatch = accumulatedFullText.match(/(?:confidence_?score|alignment(?:_score)?)["':\s*]*(\d+)/i);
           if (scoreMatch) {
             const liveScore = parseInt(scoreMatch[1], 10);
             setAlignmentScore(liveScore);
           }
 
           // Live project title extraction if not yet customized
-          const titleMatch = accumulatedFullText.match(/(?:Project|Title)[:\s]*\*?\*?\s*([^\n|*]+)/i);
+          const titleMatch = accumulatedFullText.match(/(?:suggested_?title|project|title)["':\s*]*"?([^"\n|*]+)/i);
           if (titleMatch && (!sessionTitle || sessionTitle === 'New Session' || sessionTitle === 'New Conversation')) {
             const cleaned = cleanSuggestedTitle(titleMatch[1].trim());
             if (cleaned) setSessionTitle(cleaned);
           }
+
+          const liveDisplay = formatContentForDisplay(accumulatedFullText);
 
           setMessages((prev) => {
             const next = [...prev];
@@ -507,7 +578,7 @@ export default function ChatWorkspace({
               next[next.length - 1] = {
                 ...next[next.length - 1],
                 content: accumulatedFullText,
-                displayContent: accumulatedFullText,
+                displayContent: liveDisplay || accumulatedFullText,
               };
             }
             return next;
@@ -518,12 +589,12 @@ export default function ChatWorkspace({
           const finalContent = fullText.trim();
 
           // Extract final alignment score
-          const scoreMatch = finalContent.match(/(?:Alignment|Confidence)(?:\s*Score)?[:\s]*\*?\*?\s*(\d+)%/i);
+          const scoreMatch = finalContent.match(/(?:confidence_?score|alignment(?:_score)?)["':\s*]*(\d+)/i);
           const finalScore = scoreMatch ? parseInt(scoreMatch[1], 10) : (alignmentScore || 35);
           if (scoreMatch) setAlignmentScore(finalScore);
 
           // Extract final project title
-          const titleMatch = finalContent.match(/(?:Project|Title)[:\s]*\*?\*?\s*([^\n|*]+)/i);
+          const titleMatch = finalContent.match(/(?:suggested_?title|project|title)["':\s*]*"?([^"\n|*]+)/i);
           let finalTitle = sessionTitle;
           if (titleMatch && (!sessionTitle || sessionTitle === 'New Session' || sessionTitle === 'New Conversation')) {
             const cleaned = cleanSuggestedTitle(titleMatch[1].trim());
@@ -536,10 +607,12 @@ export default function ChatWorkspace({
             setSessionTitle(finalTitle);
           }
 
+          const formattedDisplay = formatContentForDisplay(finalContent);
+
           const finalAssistantMessage = {
             role: 'assistant',
             content: finalContent,
-            displayContent: finalContent,
+            displayContent: formattedDisplay,
             modelName: selectedModel.name,
             timestamp: new Date().toISOString(),
             durationMs: Math.round(performance.now() - startTime),

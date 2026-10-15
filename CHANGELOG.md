@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added an integrated, minimal Alignment Score badge with a progress bar right into the active chat header bar.
   - Bypassed separate floating `QuestionnaireCard` overlays to keep the UI clean, responsive, and distraction-free.
 
+- **2-Minute Buffering Resolution & Universal JSON-to-Markdown Formatter (`ChatWorkspace.jsx`, `platformModelService.js`)**:
+  - Resolved 2-minute buffering delay by mapping platform models to ultra-fast `gemini-2.0-flash` with zero thinking delays, eliminating Google API 404 retries caused by invalid model identifiers.
+  - Added `formatContentForDisplay` in `ChatWorkspace.jsx` to seamlessly parse and render JSON responses into beautiful, direct Markdown with conversational greetings and inline lettered questionnaire options right in the response feed.
+  - Ensured system prompts are never empty even when users chat without selecting an active mode pill.
+
 ---
 
 ## [2.11.0] - 2026-09-17
