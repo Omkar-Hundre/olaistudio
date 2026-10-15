@@ -22,9 +22,10 @@ import { getWorkspaceModes, DEFAULT_WORKSPACE_MODES } from '../../services/works
 import { getPlatformModels } from '../../services/platformModelService';
 import { parseLocalFile } from '../../utils/fileParser';
 import { uploadFilesSecurely } from '../../services/s3Service';
-import { parseSystemCommands, cleanSuggestedTitle, extractJsonStringField } from '../../utils/systemCommandParser';
+import { cleanSuggestedTitle } from '../../utils/systemCommandParser';
 import { createWorkflowSession, updateWorkflowSession, getWorkflowSession, saveRootSessionState } from '../../services/workflowService';
 import { supabase } from '../../lib/supabase';
+import VisionCard from './VisionCard';
 import DevPayloadInspector from './DevPayloadInspector';
 import MarkdownRenderer from '../ui/MarkdownRenderer';
 import {
@@ -112,7 +113,7 @@ export default function ChatWorkspace({
     setSessionId(activeSessionId);
 
     if (activeSessionId) {
-      getWorkflowSession(activeSessionId).then(({ session }) => {
+      getWorkflowSession(activeSessionId).then(({ session, messages: loadedMessages }) => {
         if (session) {
           setAlignmentScore(session.confidence_score ?? 35);
           setSessionTitle(session.title || 'New Session');
@@ -120,49 +121,10 @@ export default function ChatWorkspace({
             setVisionContent(session.vision_content);
           }
         }
+        if (loadedMessages && Array.isArray(loadedMessages)) {
+          setMessages(loadedMessages);
+        }
       });
-
-      supabase
-        .from('workflow_nodes')
-        .select('conversation_history, hidden_commands')
-        .eq('session_id', activeSessionId)
-        .order('depth', { ascending: true })
-        .limit(1)
-        .then(({ data: nodes }) => {
-          const rootNode = nodes?.[0];
-          if (rootNode?.conversation_history && Array.isArray(rootNode.conversation_history)) {
-            // Cleanly normalize restored history so JSON blobs are never displayed as raw text
-            const normalizedHistory = rootNode.conversation_history.map((msg) => {
-              if (msg.role === 'assistant') {
-                const needsExtraction = !msg.displayContent ||
-                  msg.displayContent.trim().startsWith('{') ||
-                  msg.displayContent.trim().startsWith('```');
-                if (needsExtraction && typeof msg.content === 'string') {
-                  const { cleanText } = parseSystemCommands(msg.content);
-                  return { ...msg, displayContent: cleanText || msg.content };
-                }
-              }
-              return msg;
-            });
-            setMessages(normalizedHistory);
-          }
-          if (rootNode?.hidden_commands) {
-            const cmd = rootNode.hidden_commands;
-            if (cmd.current_branch) setCurrentBranch(cmd.current_branch);
-            if (cmd.questions && Array.isArray(cmd.questions)) {
-              // Normalize variant keys from DB (question_text, question_number, etc.)
-              const normalized = cmd.questions
-                .map((q, idx) => ({
-                  id: q.id || (q.question_number != null ? `q${q.question_number}` : `q${idx + 1}`),
-                  question: q.question || q.question_text || '',
-                  options: Array.isArray(q.options) ? q.options : [],
-                }))
-                .filter(q => q.question && q.options.length >= 2);
-              setActiveQuestions(normalized);
-            }
-            if (cmd.cta_label) setCtaLabel(cmd.cta_label);
-          }
-        });
     } else {
       setMessages([]);
       setAlignmentScore(null);
@@ -516,27 +478,27 @@ export default function ChatWorkspace({
         provider: selectedModel.provider,
         model: selectedModel.rawModel,
         systemPrompt: activeMode?.systemPrompt || '',
-        globalContext: '',
-        parentContext: '',
+        globalContext: visionContent ? `[Current Project Vision & Approved Plan]\n${visionContent}` : `[Project Focus]: ${cleanFocusTitle}`,
+        parentContext: currentBranch ? `[Current Focus Area]: ${cleanBranch} (Alignment: ${alignmentScore || 35}%)` : '',
         isPlatform: selectedModel.isPlatform !== false,
         responseFormat: 'text',
         onChunk: (_delta, accumulatedFullText) => {
           if (!firstChunkTime) {
             firstChunkTime = performance.now();
-            console.log(`[AI Performance] ⚡ TTFT: ${Math.round(firstChunkTime - startTime)}ms`);
           }
 
-          let cleanStreamingText = '';
+          // Live alignment score extraction from direct markdown
+          const scoreMatch = accumulatedFullText.match(/(?:Alignment|Confidence)(?:\s*Score)?[:\s]*\*?\*?\s*(\d+)%/i);
+          if (scoreMatch) {
+            const liveScore = parseInt(scoreMatch[1], 10);
+            setAlignmentScore(liveScore);
+          }
 
-          // Direct JSON extraction if payload is formatted as {"greeting": "..."}
-          const greetingText = extractJsonStringField(accumulatedFullText, 'greeting');
-          if (greetingText) {
-            cleanStreamingText = greetingText;
-          } else if (accumulatedFullText.trimStart().startsWith('{')) {
-            cleanStreamingText = '';
-          } else {
-            // Pure markdown/plain text stream
-            cleanStreamingText = accumulatedFullText;
+          // Live project title extraction if not yet customized
+          const titleMatch = accumulatedFullText.match(/(?:Project|Title)[:\s]*\*?\*?\s*([^\n|*]+)/i);
+          if (titleMatch && (!sessionTitle || sessionTitle === 'New Session' || sessionTitle === 'New Conversation')) {
+            const cleaned = cleanSuggestedTitle(titleMatch[1].trim());
+            if (cleaned) setSessionTitle(cleaned);
           }
 
           setMessages((prev) => {
@@ -545,55 +507,55 @@ export default function ChatWorkspace({
               next[next.length - 1] = {
                 ...next[next.length - 1],
                 content: accumulatedFullText,
-                displayContent: cleanStreamingText || accumulatedFullText.trim(),
+                displayContent: accumulatedFullText,
               };
             }
             return next;
           });
         },
         onDone: ({ fullText }) => {
-          const doneTime = performance.now();
-          console.log(`[AI Performance] 🏁 Stream Completed in: ${Math.round(doneTime - startTime)}ms`);
-
           setIsSending(false);
+          const finalContent = fullText.trim();
 
-          let cleanText = extractJsonStringField(fullText, 'greeting');
-          if (!cleanText) {
-            const { cleanText: parsed } = parseSystemCommands(fullText);
-            cleanText = parsed || fullText;
-          }
+          // Extract final alignment score
+          const scoreMatch = finalContent.match(/(?:Alignment|Confidence)(?:\s*Score)?[:\s]*\*?\*?\s*(\d+)%/i);
+          const finalScore = scoreMatch ? parseInt(scoreMatch[1], 10) : (alignmentScore || 35);
+          if (scoreMatch) setAlignmentScore(finalScore);
 
-          const suggestedTitle = extractJsonStringField(fullText, 'suggested_title');
-          const fallbackTitle = (rawText || '').split('\n')[0].slice(0, 42).trim() || 'Chat Session';
-          const finalTitle = cleanSuggestedTitle(suggestedTitle) || (sessionTitle && sessionTitle !== 'New Session' && sessionTitle !== 'New Conversation' ? sessionTitle : fallbackTitle);
-          setSessionTitle(finalTitle);
-          if (activeSessionId) {
-            updateWorkflowSession(activeSessionId, { title: finalTitle });
+          // Extract final project title
+          const titleMatch = finalContent.match(/(?:Project|Title)[:\s]*\*?\*?\s*([^\n|*]+)/i);
+          let finalTitle = sessionTitle;
+          if (titleMatch && (!sessionTitle || sessionTitle === 'New Session' || sessionTitle === 'New Conversation')) {
+            const cleaned = cleanSuggestedTitle(titleMatch[1].trim());
+            if (cleaned) {
+              finalTitle = cleaned;
+              setSessionTitle(cleaned);
+            }
+          } else if (!finalTitle || finalTitle === 'New Session' || finalTitle === 'New Conversation') {
+            finalTitle = (rawText || '').split('\n')[0].slice(0, 40).trim() || 'Project Chat';
+            setSessionTitle(finalTitle);
           }
 
           const finalAssistantMessage = {
             role: 'assistant',
-            content: fullText,
-            displayContent: cleanText.trim(),
+            content: finalContent,
+            displayContent: finalContent,
             modelName: selectedModel.name,
             timestamp: new Date().toISOString(),
-            durationMs: Math.round(doneTime - startTime),
+            durationMs: Math.round(performance.now() - startTime),
             isStreaming: false,
           };
 
-          setMessages((prev) => {
-            const next = [...prev];
-            if (next.length > 0) {
-              next[next.length - 1] = finalAssistantMessage;
-            }
-            return next;
-          });
+          const finalHistory = [...updatedHistory, finalAssistantMessage];
+          setMessages(finalHistory);
 
-          // Persist conversation history to Supabase
+          // Persist full session JSON document directly to Supabase
           if (activeSessionId) {
             saveRootSessionState({
               sessionId: activeSessionId,
-              messages: [...updatedHistory, finalAssistantMessage],
+              messages: finalHistory,
+              confidenceScore: finalScore,
+              title: finalTitle,
             });
 
             if (onSessionCreated) {
@@ -712,13 +674,27 @@ export default function ChatWorkspace({
         <div className="relative z-10 flex-1 overflow-y-auto px-4 py-6 md:px-10">
           <div className="max-w-5xl mx-auto space-y-6 pb-6">
             
-            {/* Active Chat Header Bar: Session Title & Delete Action */}
+            {/* Active Chat Header Bar: Session Title, Alignment Badge & Delete Action */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-zinc-800/80">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
-                <h2 className="text-xs font-semibold text-slate-800 dark:text-zinc-200 truncate">
-                  {sessionTitle || 'Active Session'}
-                </h2>
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
+                  <h2 className="text-xs font-semibold text-slate-800 dark:text-zinc-200 truncate">
+                    {sessionTitle || 'Active Session'}
+                  </h2>
+                </div>
+
+                {alignmentScore !== null && (
+                  <div className="flex items-center gap-2 px-2.5 py-0.5 rounded-full border border-slate-200/80 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/60 text-[11px] font-medium text-slate-700 dark:text-zinc-300 shrink-0">
+                    <span>Alignment {alignmentScore}%</span>
+                    <div className="w-12 h-1.5 rounded-full bg-slate-200 dark:bg-zinc-700 overflow-hidden">
+                      <div
+                        className="h-full bg-indigo-500 dark:bg-indigo-400 rounded-full transition-all duration-300"
+                        style={{ width: `${Math.min(100, Math.max(0, alignmentScore))}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {onDeleteSession && (sessionId || activeSessionId) && (
@@ -892,6 +868,18 @@ export default function ChatWorkspace({
                 </button>
               </div>
             )}
+
+            {/* Synthesized Master Vision Card */}
+            {visionContent && (
+              <VisionCard
+                visionContent={visionContent}
+                ctaLabel={ctaLabel}
+                onProceed={handleProceedExecution}
+                onUpdatePlan={handleUpdatePlan}
+                isExecuting={isExecuting}
+              />
+            )}
+
             <div ref={messagesEndRef} />
           </div>
         </div>

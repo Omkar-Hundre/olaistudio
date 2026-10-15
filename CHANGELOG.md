@@ -7,13 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [2.11.0] - 2026-09-17
+## [2.12.0] - 2026-10-15
 
-- **Direct Conversational Chat & Complication Removal (`ChatWorkspace.jsx`, `workspaceModeService.js`, `workspace_modes`)**:
-  - Removed `QuestionnaireCard` and `VisionCard` premature plan creation complications, transitioning the workspace into a direct, conversational AI chat experience (like ChatGPT).
-  - Streamlined system prompts across all modes to focus on natural dialogue, directly asking clarifying questions about the user's project inside conversational replies.
-  - Eliminated complex 2-step state machines, premature plan triggers, and brittle regex parsing, ensuring responses start streaming immediately with minimal latency.
-  - Synchronized updated conversational system prompts across all 4 modes in Supabase `public.workspace_modes`.
+- **Single-Table JSON Document Architecture (`workflowService.js`)**:
+  - Replaced 3-table relational DAG storage (`workflow_sessions`, `workflow_nodes`, `workflow_node_dependencies`) with direct single-table JSON document storage inside `workflow_sessions.global_context`.
+  - Implemented automatic backward-compatibility reading for historical chats previously saved in `workflow_nodes`.
+  - Atomic single-query saves and deletions with zero foreign key locking or transaction overhead.
+
+- **Direct Markdown Streaming & In-Response Questionnaire (`workspaceModeService.js`, `ChatWorkspace.jsx`)**:
+  - Updated system prompts to output clean, readable Markdown directly instead of complex JSON payloads or `<meta>` tags.
+  - Architectural questions and lettered choices are now printed directly into the AI response text so users can read and respond naturally in the conversation flow.
+  - Removed brittle typewriter regex parsers (`extractJsonStringField`, `parseSystemCommands`) from the streaming pipeline, ensuring 100% smooth, uninterrupted response streaming.
+
+- **Active Header Alignment Indicator (`ChatWorkspace.jsx`)**:
+  - Added an integrated, minimal Alignment Score badge with a progress bar right into the active chat header bar.
+  - Bypassed separate floating `QuestionnaireCard` overlays to keep the UI clean, responsive, and distraction-free.
+
+---
+
+## [2.11.0] - 2026-09-17
 
 - **150.9s Latency Resolution & Master Plan Depth Upgrade (`workspaceModeService.js`, `ChatWorkspace.jsx`, `systemCommandParser.js`, `aiProxyService.js`)**:
   - Eliminated the 150.9s response freeze by harmonizing system prompts with Gemini API JSON schemas, strictly banning runaway source code loops and enforcing immediate completion upon Master Plan synthesis.

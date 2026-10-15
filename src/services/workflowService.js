@@ -10,7 +10,6 @@
  */
 
 import { supabase } from '../lib/supabase';
-import { buildCategorizedMemory } from './categorizedMemoryService';
 
 /**
  * Creates a new workflow session (Mother Agent root session)
@@ -60,9 +59,24 @@ export async function getWorkflowSession(sessionId) {
       .single();
 
     if (error) throw error;
-    return { session: data, error: null };
+
+    // Direct JSON document retrieval from global_context
+    if (data?.global_context?.messages && Array.isArray(data.global_context.messages)) {
+      return { session: data, messages: data.global_context.messages, error: null };
+    }
+
+    // Graceful backward-compatibility fallback for legacy rows in workflow_nodes
+    const { data: nodes } = await supabase
+      .from('workflow_nodes')
+      .select('conversation_history')
+      .eq('session_id', sessionId)
+      .order('depth', { ascending: true })
+      .limit(1);
+
+    const legacyMessages = nodes?.[0]?.conversation_history || [];
+    return { session: data, messages: legacyMessages, error: null };
   } catch (err) {
-    return { session: null, error: err.message };
+    return { session: null, messages: [], error: err.message };
   }
 }
 
@@ -90,34 +104,25 @@ export async function getUserWorkflowSessions(userId) {
 }
 
 /**
- * Deletes a workflow session and all related nodes and dependencies from Supabase
+ * Deletes a workflow session and cleans up any legacy node references
  * @param {string} sessionId
  * @returns {Promise<{ success: boolean, error: string | null }>}
  */
 export async function deleteWorkflowSession(sessionId) {
   if (!sessionId) return { success: false, error: 'Session ID required' };
   try {
-    // 1. Delete node dependencies
-    const { error: depErr } = await supabase
-      .from('workflow_node_dependencies')
-      .delete()
-      .eq('session_id', sessionId);
-    if (depErr) console.warn('[Workflow] Delete dependencies warning:', depErr);
-
-    // 2. Delete child nodes
-    const { error: nodeErr } = await supabase
-      .from('workflow_nodes')
-      .delete()
-      .eq('session_id', sessionId);
-    if (nodeErr) console.warn('[Workflow] Delete nodes warning:', nodeErr);
-
-    // 3. Delete session record
+    // Delete session record directly
     const { error: sessionErr } = await supabase
       .from('workflow_sessions')
       .delete()
       .eq('id', sessionId);
 
     if (sessionErr) throw sessionErr;
+
+    // Clean up any legacy table entries non-blockingly
+    await supabase.from('workflow_node_dependencies').delete().eq('session_id', sessionId).catch(() => {});
+    await supabase.from('workflow_nodes').delete().eq('session_id', sessionId).catch(() => {});
+
     return { success: true, error: null };
   } catch (err) {
     console.error('Error deleting workflow session:', err);
@@ -126,7 +131,7 @@ export async function deleteWorkflowSession(sessionId) {
 }
 
 /**
- * Saves/upserts the full root conversation history into workflow_nodes and workflow_sessions
+ * Saves/updates the entire conversation session directly as a JSON document in workflow_sessions
  * @param {Object} params
  * @returns {Promise<{ success: boolean, error: string | null }>}
  */
@@ -134,98 +139,34 @@ export async function saveRootSessionState({
   sessionId,
   messages = [],
   confidenceScore = 35,
-  currentBranch = '',
-  visionContent = '',
-  questions = [],
-  ctaLabel = 'Cook',
+  title = null,
 }) {
   if (!sessionId) return { success: false, error: 'Session ID required' };
   try {
-    // Generate 3-Level Categorized Memory paragraphs
-    const memory = buildCategorizedMemory({
-      messages,
-      currentBranch,
-      confidenceScore,
-      visionContent,
-      activeQuestions: questions,
-    });
+    const updatePayload = {
+      confidence_score: confidenceScore,
+      status: confidenceScore >= 95 ? 'completed' : 'interviewing',
+      global_context: {
+        messages,
+        confidenceScore,
+        lastUpdated: new Date().toISOString(),
+      },
+      updated_at: new Date().toISOString(),
+    };
 
-    // 1. Update session row with Level 3 Categorized Global Memory
-    const { error: sessionErr } = await supabase
-      .from('workflow_sessions')
-      .update({
-        confidence_score: confidenceScore,
-        vision_content: visionContent || null,
-        status: visionContent ? 'vision_ready' : 'interviewing',
-        global_context: {
-          narrative: memory.narrative,
-          structured: memory.structured,
-        },
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', sessionId);
-
-    if (sessionErr) console.warn('[Workflow] Session update warning:', sessionErr);
-
-    // 2. Check for existing root node
-    const { data: existingNodes, error: fetchErr } = await supabase
-      .from('workflow_nodes')
-      .select('id')
-      .eq('session_id', sessionId)
-      .limit(1);
-
-    if (fetchErr) console.warn('[Workflow] Node fetch warning:', fetchErr);
-
-    const rootNodeId = existingNodes?.[0]?.id;
-
-    if (rootNodeId) {
-      const { error: updateErr } = await supabase
-        .from('workflow_nodes')
-        .update({
-          conversation_history: messages,
-          input_context: {
-            narrative: memory.nodeContext,
-          },
-          hidden_commands: {
-            confidence_score: confidenceScore,
-            current_branch: currentBranch,
-            questions,
-            cta_label: ctaLabel,
-          },
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', rootNodeId);
-
-      if (updateErr) console.warn('[Workflow] Node update warning:', updateErr);
-    } else {
-      const { error: insertErr } = await supabase
-        .from('workflow_nodes')
-        .insert({
-          session_id: sessionId,
-          parent_id: null,
-          node_type: 'root',
-          depth: 0,
-          order_index: 0,
-          title: 'Mother Agent Interview',
-          status: 'completed',
-          conversation_history: messages,
-          input_context: {
-            narrative: memory.nodeContext,
-          },
-          hidden_commands: {
-            confidence_score: confidenceScore,
-            current_branch: currentBranch,
-            questions,
-            cta_label: ctaLabel,
-          },
-        });
-
-      if (insertErr) console.warn('[Workflow] Node insert warning:', insertErr);
+    if (title && title !== 'New Session' && title !== 'New Conversation') {
+      updatePayload.title = title;
     }
 
+    const { error: sessionErr } = await supabase
+      .from('workflow_sessions')
+      .update(updatePayload)
+      .eq('id', sessionId);
+
+    if (sessionErr) throw sessionErr;
     return { success: true, error: null };
   } catch (err) {
-    console.error('Error saving root session state:', err);
+    console.error('Error saving session state:', err);
     return { success: false, error: err.message };
   }
 }
