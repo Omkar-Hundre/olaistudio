@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.13.1] - 2026-10-16
+
+- **OpenAI Platform Key Hardcoded (`.env`, `aiProxyService.js`)**: Added `VITE_OPENAI_API_KEY` to `.env`; added `getActiveOpenAIKey()` resolver that reads env var with localStorage fallback.
+- **OpenAI Direct Fast-Path (`aiProxyService.js`)**: Added direct `https://api.openai.com/v1/chat/completions` call paths (non-streaming & streaming) that bypass the Supabase edge function — mirrors the existing Gemini fast-path, eliminating 150s timeout risk.
+- **Auto-populated OpenAI Models (`apiKeyService.js`)**: `getUserApiKeys` now falls back to the platform env key so GPT models appear in the model picker without users needing to manually enter a key.
+
+---
+
 ## [2.13.0] - 2026-10-15
 
 - **Minimal Landing Page Design System Skill (`.agents/skills/minimal-landing-page/SKILL.md`)**: Created design system skill defining exact typography (Inter, clamp sizes, tight tracking), color palettes (Dark Premium / Light Minimal), 8px spacing grid, component patterns, and a strict anti-patterns list. Now embedded directly into the section generation system prompt.

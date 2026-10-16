@@ -32,6 +32,24 @@ export function getActiveGeminiKey() {
 }
 
 /**
+ * Resolves active OpenAI API key from environment (.env) or localStorage
+ */
+export function getActiveOpenAIKey() {
+  // Hardcoded platform key — falls back to user-supplied key from localStorage
+  const envKey = import.meta.env?.VITE_OPENAI_API_KEY;
+  if (envKey && envKey.trim()) return envKey.trim();
+
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem('openai_api_key');
+      if (stored && stored.trim()) return stored.trim();
+    } catch {}
+  }
+
+  return '';
+}
+
+/**
  * Normalizes model names for Gemini compatibility
  */
 function resolveGeminiModel(model) {
@@ -106,6 +124,43 @@ export async function sendProxyChatMessage({
     });
 
     const geminiKey = getActiveGeminiKey();
+    const openaiKey = getActiveOpenAIKey();
+
+    // Fast-path: Direct OpenAI execution (bypasses Supabase edge function)
+    if (provider === 'openai' && openaiKey) {
+      const resolvedModel = model || 'gpt-4o';
+      const openaiMessages = systemPrompt
+        ? [{ role: 'system', content: systemPrompt }, ...safeMessages]
+        : safeMessages;
+
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${openaiKey}`,
+        },
+        body: JSON.stringify({
+          model: resolvedModel,
+          messages: openaiMessages,
+          stream: false,
+        }),
+        signal: AbortSignal.timeout(30000),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`OpenAI API error (${res.status}): ${errText}`);
+      }
+
+      const data = await res.json();
+      const reply = data.choices?.[0]?.message?.content || '';
+      return {
+        reply,
+        creditsRemaining: 99,
+        usedUserKey: true,
+        tokenReport,
+      };
+    }
 
     // Fast-path: Direct Gemini execution (bypasses 150s edge function completely)
     if (provider === 'gemini' && geminiKey) {
@@ -235,6 +290,66 @@ export async function sendStreamingProxyChatMessage({
     });
 
     const geminiKey = getActiveGeminiKey();
+    const openaiKey = getActiveOpenAIKey();
+
+    // Fast-path: Direct OpenAI streaming (no Supabase edge timeout)
+    if (provider === 'openai' && openaiKey) {
+      const resolvedModel = model || 'gpt-4o';
+      const openaiMessages = systemPrompt
+        ? [{ role: 'system', content: systemPrompt }, ...safeMessages]
+        : safeMessages;
+
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${openaiKey}`,
+        },
+        body: JSON.stringify({
+          model: resolvedModel,
+          messages: openaiMessages,
+          stream: true,
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`OpenAI streaming error (${res.status}): ${errText}`);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedText = '';
+      let sseBuffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        sseBuffer += decoder.decode(value, { stream: true });
+        const lines = sseBuffer.split('\n');
+        sseBuffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const rawData = line.slice(6).trim();
+            if (!rawData || rawData === '[DONE]') continue;
+            try {
+              const parsed = JSON.parse(rawData);
+              const delta = parsed.choices?.[0]?.delta?.content || '';
+              if (delta) {
+                accumulatedText += delta;
+                onChunk(delta, accumulatedText);
+              }
+            } catch {}
+          }
+        }
+      }
+
+      const result = { success: true, fullText: accumulatedText, creditsRemaining: 99 };
+      onDone(result);
+      return result;
+    }
 
     // Fast-path: Direct Gemini streaming (<1.5s latency, no Supabase edge timeout freeze)
     if (provider === 'gemini' && geminiKey) {

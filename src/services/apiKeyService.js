@@ -10,6 +10,7 @@
  */
 
 import { supabase } from '../lib/supabase';
+import { getActiveOpenAIKey } from './aiProxyService';
 
 /**
  * Fetches user API keys directly from Supabase (always fresh, zero stale caching)
@@ -42,7 +43,7 @@ export async function getUserApiKeys(userId) {
 
     return {
       keys: {
-        openaiKey: data?.openai_key || '',
+        openaiKey: data?.openai_key || getActiveOpenAIKey(),
         claudeKey: data?.claude_key || '',
         geminiKey: data?.gemini_key || '',
       },
@@ -50,7 +51,7 @@ export async function getUserApiKeys(userId) {
     };
   } catch (err) {
     console.error('Failed to fetch user API keys:', err);
-    return { keys: { openaiKey: '', claudeKey: '', geminiKey: '' }, error: err };
+    return { keys: { openaiKey: getActiveOpenAIKey(), claudeKey: '', geminiKey: '' }, error: err };
   }
 }
 
