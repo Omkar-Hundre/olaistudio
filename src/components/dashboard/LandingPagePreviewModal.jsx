@@ -29,12 +29,16 @@ export default function LandingPagePreviewModal({ isOpen, onClose, sections = []
       // Find latest assistant code
       const latestAssistant = [...(s.messages || [])].reverse().find(m => m.role === 'assistant');
       const text = latestAssistant?.content || s.content || '';
-      return `<!-- Section: ${s.title} -->\n${extractHtmlFromResponse(text)}`;
+      const html = extractHtmlFromResponse(text);
+      return html ? `<!-- Section: ${s.title} -->\n${html}` : '';
     })
+    .filter(Boolean)
     .join('\n\n');
 
+  const hasContent = Boolean(stitchedSectionsHtml.trim());
+
   const fullHtmlDocument = `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -42,19 +46,26 @@ export default function LandingPagePreviewModal({ isOpen, onClose, sections = []
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    body {
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      scroll-behavior: smooth;
+    * {
+      font-family: 'Inter', sans-serif;
     }
-    .font-serif {
-      font-family: 'Playfair Display', serif;
+    body {
+      scroll-behavior: smooth;
     }
   </style>
 </head>
-<body class="bg-white text-slate-900 antialiased selection:bg-slate-900 selection:text-white">
-  ${stitchedSectionsHtml}
+<body class="bg-[#0A0A0A] text-zinc-100 antialiased min-h-screen selection:bg-white selection:text-black">
+  ${hasContent ? stitchedSectionsHtml : `
+    <div class="min-h-screen flex flex-col items-center justify-center p-8 text-center">
+      <div class="h-12 w-12 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-4 text-zinc-400">
+        <svg class="h-6 w-6 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="32" stroke-linecap="round"></circle></svg>
+      </div>
+      <h2 class="text-lg font-semibold text-zinc-100 mb-2">Generating Landing Page Sections...</h2>
+      <p class="text-xs text-zinc-400 max-w-sm">Parallel sections are currently building with Tailwind CSS. They will stream and render here as each section finishes.</p>
+    </div>
+  `}
 </body>
 </html>`;
 

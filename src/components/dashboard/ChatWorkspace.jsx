@@ -239,14 +239,14 @@ export default function ChatWorkspace({
   const fileInputRef = useRef(null);
   const modelDropdownRef = useRef(null);
 
-  // Model Selection State (Default: Olai M1)
+  // Model Selection State (Default: Olai M1 using OpenAI)
   const [selectedModel, setSelectedModel] = useState({
     id: 'olai-m1',
     name: 'Olai M1',
-    provider: 'gemini',
-    rawModel: 'gemini-2.0-flash',
+    provider: 'openai',
+    rawModel: 'gpt-4o',
     isPlatform: true,
-    creditCost: 'Default • High-speed platform intelligence',
+    creditCost: 'Default • OpenAI Core Reasoning',
   });
 
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
@@ -254,10 +254,10 @@ export default function ChatWorkspace({
     {
       id: 'olai-m1',
       name: 'Olai M1',
-      provider: 'gemini',
-      rawModel: 'gemini-2.0-flash',
+      provider: 'openai',
+      rawModel: 'gpt-4o',
       isPlatform: true,
-      creditCost: 'Default • High-speed platform intelligence',
+      creditCost: 'Default • OpenAI Core Reasoning',
     },
   ]);
 
@@ -764,6 +764,7 @@ export default function ChatWorkspace({
                 content: cleanHtml,
                 messages: [{ role: 'assistant', content: markup, timestamp: new Date().toISOString() }],
                 isGenerating: false,
+                error: null,
               } : s);
 
               if (activeSessionId) {
@@ -811,6 +812,40 @@ export default function ChatWorkspace({
       }
       return next;
     });
+  };
+
+  const handleRetrySection = async (sec) => {
+    setSections(prev => prev.map(s => s.id === sec.id ? { ...s, isGenerating: true, error: null } : s));
+    try {
+      const planToUse = visionContent || messages.find(m => detectFinalizedPlan(m.content))?.content || 'Landing page architecture plan';
+      const markup = await generateSectionContent({ section: sec, plan: planToUse });
+      const htmlMatch = markup.match(/```(?:html|jsx|xml)?\s*([\s\S]*?)```/i);
+      const cleanHtml = htmlMatch ? htmlMatch[1].trim() : (/^\s*</.test(markup.trim()) ? markup.trim() : markup);
+      setSections(prev => {
+        const updated = prev.map(s => s.id === sec.id ? {
+          ...s,
+          content: cleanHtml,
+          messages: [{ role: 'assistant', content: markup, timestamp: new Date().toISOString() }],
+          isGenerating: false,
+          error: null,
+        } : s);
+
+        const activeSessionId = sessionIdRef.current;
+        if (activeSessionId) {
+          saveRootSessionState({
+            sessionId: activeSessionId,
+            messages,
+            confidenceScore: alignmentScore || 95,
+            sections: updated,
+            visionContent: planToUse,
+          });
+        }
+        return updated;
+      });
+    } catch (err) {
+      console.error(`Retry generation error for ${sec.title}:`, err);
+      setSections(prev => prev.map(s => s.id === sec.id ? { ...s, isGenerating: false, error: err.message } : s));
+    }
   };
 
   const handleUpdatePlan = async (newPlanContent) => {
@@ -1133,6 +1168,7 @@ export default function ChatWorkspace({
               <SectionWorkflowDeck
                 sections={sections}
                 onUpdateSection={handleUpdateSection}
+                onRetrySection={handleRetrySection}
                 onOpenPreview={() => setIsPreviewModalOpen(true)}
                 projectTitle={sessionTitle}
               />

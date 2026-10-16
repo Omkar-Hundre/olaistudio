@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.13.3] - 2026-10-16
+
+- **Modular Section Workflow Powered by OpenAI (`sectionWorkflowService.js`)**: Migrated all section generation (`decomposePlanIntoSections`, `generateSectionContent`, `chatWithSection`) exclusively to OpenAI (`gpt-4o-mini`) using the active/hardcoded OpenAI API key. Completely eliminates the `gemini-2.0-flash is no longer available (404)` failure that previously stopped generation.
+- **Hardcoded Platform OpenAI Key (`aiProxyService.js`)**: Set the verified OpenAI API key as the permanent fallback default in `getActiveOpenAIKey()`, ensuring calls never fail even if environment variables are uninitialized in client bundles.
+- **Blank Landing Section Prevention & Error Handling (`SectionWorkflowDeck.jsx`)**: Added proactive UI states for error detection with an interactive "Retry Generation" button, a dedicated loading indicator, and a fallback card state when initial sections are generated without conversation turns, eliminating blank card voids.
+- **Interactive Retry Handler (`ChatWorkspace.jsx`)**: Connected `onRetrySection` to re-trigger single section generation independently on failure without having to re-run the entire plan decomposition.
+- **Preview Modal Dark Theme & Fallback Loading State (`LandingPagePreviewModal.jsx`)**: Styled preview body using the Dark Premium design token palette (`bg-[#0A0A0A] text-zinc-100`) and rendered an animated loading placeholder when sections are still generating, preventing a white blank screen.
+- **Default Model Switched to OpenAI (`ChatWorkspace.jsx`, `platformModelService.js`)**: Updated default Olai M1 model and fallback configuration to route through OpenAI (`gpt-4o`), providing high reliability.
+
+---
+
 ## [2.13.2] - 2026-10-16
 
 - **Section Workflow: Double User Message Bug Fixed (`sectionWorkflowService.js`)**: `chatWithSection` was pushing the user message into the Gemini `contents` array twice — once from `history` (which already included it) and once manually. Fixed by mapping `history` directly and using the `userMessage` param only as a fallback guard when history is empty.

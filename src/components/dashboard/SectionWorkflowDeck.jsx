@@ -33,6 +33,7 @@ export default function SectionWorkflowDeck({
   sections = [],
   onUpdateSection,
   onOpenPreview,
+  onRetrySection,
   projectTitle = 'Project',
 }) {
   const [activeTab, setActiveTab] = useState({}); // sectionId -> 'chat' | 'code'
@@ -205,18 +206,62 @@ export default function SectionWorkflowDeck({
                 className="min-h-[160px] max-h-[420px] overflow-y-auto p-4 space-y-3.5 text-xs text-slate-800 dark:text-zinc-200 custom-scrollbar"
               >
                 {isCodeTab ? (
-                  <div className="p-3 bg-slate-950 rounded-xl font-mono text-[11px] text-zinc-300 overflow-x-auto">
-                    <pre>{section.content || 'Generating section code...'}</pre>
+                  <div className="p-3 bg-slate-950 rounded-xl font-mono text-[11px] text-zinc-300 overflow-x-auto max-h-[350px]">
+                    {section.content ? (
+                      <pre className="whitespace-pre-wrap">{section.content}</pre>
+                    ) : section.isGenerating ? (
+                      <div className="flex items-center gap-2 text-zinc-500 py-4">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <span>Generating section code...</span>
+                      </div>
+                    ) : (
+                      <div className="text-zinc-500 py-3">
+                        {section.error ? `Error: ${section.error}` : 'No code generated yet.'}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <>
-                    {sectionMessages.length === 0 && section.isGenerating && (
-                      <div className="flex flex-col items-center justify-center h-full text-center py-12 text-slate-400 dark:text-zinc-500 gap-2">
-                        <Loader2 className="h-5 w-5 animate-spin text-slate-600 dark:text-zinc-400" />
-                        <span className="text-xs">Generating {section.title}...</span>
+                    {/* Error Banner with Retry */}
+                    {section.error && (
+                      <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 space-y-2">
+                        <p className="text-[11px] leading-relaxed">
+                          <strong className="font-semibold">Generation issue:</strong> {section.error}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => onRetrySection && onRetrySection(section)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[11px] font-medium transition cursor-pointer shadow-xs"
+                        >
+                          <RotateCw className="h-3 w-3" />
+                          Retry Generation
+                        </button>
                       </div>
                     )}
 
+                    {/* In-progress Loading State */}
+                    {sectionMessages.length === 0 && section.isGenerating && (
+                      <div className="flex flex-col items-center justify-center h-full text-center py-10 text-slate-400 dark:text-zinc-500 gap-2">
+                        <Loader2 className="h-5 w-5 animate-spin text-slate-600 dark:text-zinc-400" />
+                        <span className="text-xs font-medium">Generating {section.title}...</span>
+                        <span className="text-[10px] text-slate-400 dark:text-zinc-500">Building Tailwind HTML layout</span>
+                      </div>
+                    )}
+
+                    {/* Section Ready / Content Present fallback when no chat turns yet */}
+                    {sectionMessages.length === 0 && !section.isGenerating && !section.error && (
+                      <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-zinc-900/60 border border-slate-200/60 dark:border-zinc-800 space-y-2">
+                        <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
+                          <Check className="h-3.5 w-3.5" />
+                          <span>{section.title} Ready</span>
+                        </div>
+                        <p className="text-[11px] text-slate-600 dark:text-zinc-400 leading-relaxed">
+                          Initial HTML markup is ready. Switch to the <strong>Code tab</strong> to inspect the markup, or type a request below to iterate on styling, copy, or components.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Render message conversation turns */}
                     {sectionMessages.map((msg, mIdx) => (
                       <div
                         key={mIdx}

@@ -3,15 +3,14 @@
  * Service: sectionWorkflowService
  * ==============================================================================
  * Orchestrates multi-section parallel decomposition, individual generation,
- * and isolated per-section conversational iterations.
+ * and isolated per-section conversational iterations using OpenAI.
  * ==============================================================================
  */
 
-import { getActiveGeminiKey } from './aiProxyService';
+import { getActiveOpenAIKey } from './aiProxyService';
 
-// gemini-2.0-flash: 1500 req/day free tier (vs gemini-2.5-flash: 20 req/day)
-// Section generation uses 2.0-flash to avoid exhausting the daily quota.
-const GEMINI_MODEL = 'gemini-2.0-flash';
+// Fast, reliable, high-quota model for parallel generation without rate bursts
+const OPENAI_MODEL = 'gpt-4o-mini';
 
 /**
  * Decomposes a project plan into 3-6 modular implementation sections
@@ -19,56 +18,70 @@ const GEMINI_MODEL = 'gemini-2.0-flash';
  * @returns {Promise<Array<{ id: string, title: string, summary: string, guardrails: string }>>}
  */
 export async function decomposePlanIntoSections(planText) {
-  const apiKey = getActiveGeminiKey();
-  if (!apiKey) throw new Error('Gemini API key is required for decomposition.');
+  const apiKey = getActiveOpenAIKey();
+  if (!apiKey) throw new Error('OpenAI API key is required for decomposition.');
 
   const prompt = `Decompose this project plan into 4 to 6 distinct, modular implementation sections for building the landing page or project.
-Return ONLY a valid JSON array of objects with the exact keys "id", "title", "summary", and "guardrails". No markdown formatting, just raw JSON.
+Return a valid JSON object with a "sections" key containing an array of section objects.
+Each section object must have the exact keys: "id", "title", "summary", and "guardrails".
 
-Example format:
-[
-  {
-    "id": "hero",
-    "title": "Hero Section",
-    "summary": "High-impact visual banner, benefit-driven headline, value prop, and primary CTAs",
-    "guardrails": "Generate ONLY the Hero Section HTML with Tailwind CSS. Do not include navbar, wrappers, or other sections."
-  }
-]
+Example JSON structure:
+{
+  "sections": [
+    {
+      "id": "hero",
+      "title": "Hero Section",
+      "summary": "High-impact visual banner, benefit-driven headline, value prop, and primary CTAs",
+      "guardrails": "Generate ONLY the Hero Section HTML with Tailwind CSS. Do not include navbar, wrappers, or other sections."
+    }
+  ]
+}
 
 Project Plan:
 ${planText}`;
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
-    const res = await fetch(url, {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
       body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        // Note: responseMimeType:'application/json' + thinkingBudget:0 = empty output error.
-        // We parse JSON manually from the text response instead.
-        generationConfig: {
-          thinkingConfig: { thinkingBudget: 0 },
-        },
+        model: OPENAI_MODEL,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert technical architect that decomposes landing page plans into clean, modular sections. Always respond in valid JSON.',
+          },
+          { role: 'user', content: prompt },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.3,
       }),
+      signal: AbortSignal.timeout(25000),
     });
 
     if (!res.ok) {
-      throw new Error(`Decomposition failed with status ${res.status}`);
+      const errText = await res.text();
+      throw new Error(`OpenAI decomposition failed (${res.status}): ${errText}`);
     }
 
     const data = await res.json();
-    let rawJson = data.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
-    // Strip markdown code fences if present (model may wrap output without responseMimeType)
-    rawJson = rawJson.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+    const rawJson = data.choices?.[0]?.message?.content || '{}';
     const parsed = JSON.parse(rawJson);
+    const rawSections = Array.isArray(parsed) ? parsed : (parsed.sections || parsed.items || []);
 
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed.map((item, idx) => ({
+    if (Array.isArray(rawSections) && rawSections.length > 0) {
+      return rawSections.map((item, idx) => ({
         id: item.id || `section_${idx + 1}`,
         title: item.title || `Section ${idx + 1}`,
         summary: item.summary || 'Implementation section',
-        guardrails: item.guardrails || 'Generate ONLY this specific section.',
+        guardrails: typeof item.guardrails === 'string'
+          ? item.guardrails
+          : Array.isArray(item.guardrails)
+            ? item.guardrails.join(' ')
+            : 'Generate ONLY this specific section.',
       }));
     }
   } catch (err) {
@@ -99,17 +112,17 @@ ${planText}`;
 }
 
 /**
- * Generates initial section code/markup with strict guardrails
+ * Generates initial section code/markup with strict guardrails via OpenAI
  * @param {Object} params
  * @param {Object} params.section
  * @param {string} params.plan
  * @returns {Promise<string>}
  */
 export async function generateSectionContent({ section, plan }) {
-  const apiKey = getActiveGeminiKey();
-  if (!apiKey) throw new Error('API key missing');
+  const apiKey = getActiveOpenAIKey();
+  if (!apiKey) throw new Error('OpenAI API key is missing. Please verify your OpenAI key.');
 
-  // ── Load design system rules from minimal-landing-page skill ──
+  // Load design system rules from minimal-landing-page skill
   const systemInstruction = `You are a senior UI engineer who designs minimal, premium landing page sections.
 
 DESIGN SYSTEM RULES (follow strictly):
@@ -167,7 +180,6 @@ CTA/Footer: full-width bg-zinc-950 invert section, large headline, single white 
 
 You are generating ONLY the "${section.title}" section. Do NOT generate any other section.`;
 
-
   const userPrompt = `Project Plan & Brand Context:
 ${plan}
 
@@ -177,19 +189,21 @@ Guardrail Instructions: ${section.guardrails}
 
 Please generate the complete, production-ready HTML markup for this section now.`;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
-  const res = await fetch(url, {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
     body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-      generationConfig: {
-        thinkingConfig: { thinkingBudget: 0 },
-      },
-      systemInstruction: {
-        parts: [{ text: systemInstruction }],
-      },
+      model: OPENAI_MODEL,
+      messages: [
+        { role: 'system', content: systemInstruction },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.7,
     }),
+    signal: AbortSignal.timeout(45000),
   });
 
   if (!res.ok) {
@@ -198,11 +212,11 @@ Please generate the complete, production-ready HTML markup for this section now.
   }
 
   const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  return data.choices?.[0]?.message?.content || '';
 }
 
 /**
- * Executes a follow-up conversation prompt for a single isolated section
+ * Executes a follow-up conversation prompt for a single isolated section via OpenAI
  * @param {Object} params
  * @param {Object} params.section
  * @param {Array<{ role: string, content: string }>} params.history
@@ -210,39 +224,42 @@ Please generate the complete, production-ready HTML markup for this section now.
  * @returns {Promise<string>}
  */
 export async function chatWithSection({ section, history = [], userMessage }) {
-  const apiKey = getActiveGeminiKey();
-  if (!apiKey) throw new Error('API key missing');
+  const apiKey = getActiveOpenAIKey();
+  if (!apiKey) throw new Error('OpenAI API key missing. Please verify your OpenAI key.');
 
-  const systemInstruction = `You are an expert engineer dedicated strictly to the "${section.title}".
-Your task is to update, refine, or answer questions specifically regarding this section's HTML markup and design.
-Always return the revised section HTML code when asked to change or improve the design.
-Guardrails: Never drift into other sections of the landing page. Focus solely on ${section.title}.`;
+  const systemInstruction = `You are an expert engineer dedicated strictly to the "${section.title}" section.
+Your task is to update, refine, or answer questions specifically regarding this section's HTML markup and Tailwind CSS design.
+Always return the revised section HTML code inside a \`\`\`html ... \`\`\` code block when asked to change or improve the design.
+Guardrails: Never drift into other sections of the landing page. Focus solely on ${section.title}. Output pure static HTML with Tailwind utility classes.`;
 
-  // Build contents from history. history already includes the latest user message
-  // (added by the caller before invoking), so do NOT push userMessage again.
-  const contents = history.map(msg => ({
-    role: msg.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: msg.content }],
-  }));
+  // Build clean OpenAI messages
+  const cleanMessages = [
+    { role: 'system', content: systemInstruction },
+    ...history
+      .filter(m => m.role === 'user' || m.role === 'assistant')
+      .map(m => ({
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+      })),
+  ];
 
-  // Guard: ensure the last message is from the user (Gemini requires alternating turns)
-  if (contents.length === 0 || contents[contents.length - 1].role !== 'user') {
-    contents.push({ role: 'user', parts: [{ text: userMessage }] });
+  // Guard: ensure the last message is from the user
+  if (cleanMessages.length === 1 || cleanMessages[cleanMessages.length - 1].role !== 'user') {
+    cleanMessages.push({ role: 'user', content: userMessage });
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
-  const res = await fetch(url, {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
     body: JSON.stringify({
-      contents,
-      generationConfig: {
-        thinkingConfig: { thinkingBudget: 0 },
-      },
-      systemInstruction: {
-        parts: [{ text: systemInstruction }],
-      },
+      model: OPENAI_MODEL,
+      messages: cleanMessages,
+      temperature: 0.7,
     }),
+    signal: AbortSignal.timeout(35000),
   });
 
   if (!res.ok) {
@@ -251,5 +268,5 @@ Guardrails: Never drift into other sections of the landing page. Focus solely on
   }
 
   const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  return data.choices?.[0]?.message?.content || '';
 }

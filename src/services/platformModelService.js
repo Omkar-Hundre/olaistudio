@@ -15,10 +15,10 @@ const FALLBACK_PLATFORM_MODELS = [
   {
     id: 'olai-m1',
     name: 'Olai M1',
-    provider: 'gemini',
-    rawModel: 'gemini-2.5-flash',
+    provider: 'openai',
+    rawModel: 'gpt-4o',
     isPlatform: true,
-    creditCost: 'Default • High-speed',
+    creditCost: 'Default • OpenAI Core Reasoning',
   },
 ];
 
