@@ -755,10 +755,13 @@ export default function ChatWorkspace({
         setTimeout(async () => {
           try {
             const markup = await generateSectionContent({ section: sec, plan: planToExecute });
+            // Extract clean HTML from Gemini response (strips preamble sentence & code fences)
+            const htmlMatch = markup.match(/```(?:html|jsx|xml)?\s*([\s\S]*?)```/i);
+            const cleanHtml = htmlMatch ? htmlMatch[1].trim() : (/^\s*</.test(markup.trim()) ? markup.trim() : markup);
             setSections(prev => {
               const updated = prev.map(s => s.id === sec.id ? {
                 ...s,
-                content: markup,
+                content: cleanHtml,
                 messages: [{ role: 'assistant', content: markup, timestamp: new Date().toISOString() }],
                 isGenerating: false,
               } : s);

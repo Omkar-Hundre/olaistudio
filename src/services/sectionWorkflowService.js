@@ -218,18 +218,17 @@ Your task is to update, refine, or answer questions specifically regarding this 
 Always return the revised section HTML code when asked to change or improve the design.
 Guardrails: Never drift into other sections of the landing page. Focus solely on ${section.title}.`;
 
-  const contents = [];
-  for (const msg of history) {
-    contents.push({
-      role: msg.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: msg.content }],
-    });
-  }
+  // Build contents from history. history already includes the latest user message
+  // (added by the caller before invoking), so do NOT push userMessage again.
+  const contents = history.map(msg => ({
+    role: msg.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: msg.content }],
+  }));
 
-  contents.push({
-    role: 'user',
-    parts: [{ text: userMessage }],
-  });
+  // Guard: ensure the last message is from the user (Gemini requires alternating turns)
+  if (contents.length === 0 || contents[contents.length - 1].role !== 'user') {
+    contents.push({ role: 'user', parts: [{ text: userMessage }] });
+  }
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
   const res = await fetch(url, {

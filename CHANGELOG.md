@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.13.2] - 2026-10-16
+
+- **Section Workflow: Double User Message Bug Fixed (`sectionWorkflowService.js`)**: `chatWithSection` was pushing the user message into the Gemini `contents` array twice — once from `history` (which already included it) and once manually. Fixed by mapping `history` directly and using the `userMessage` param only as a fallback guard when history is empty.
+- **Section Workflow: HTML Extraction Fixed (`ChatWorkspace.jsx`, `SectionWorkflowDeck.jsx`)**: Initial `generateSectionContent` and follow-up `chatWithSection` replies were storing raw Gemini output (preamble sentence + markdown code fence + HTML) as `section.content`. Now extracts the clean HTML before storing, so the Code tab and Live Preview always show proper markup.
+- **Section Workflow: History Contamination Fixed (`SectionWorkflowDeck.jsx`)**: Filtered out any non-user/assistant messages (e.g., pending states) before building history sent to the API.
+
+---
+
 ## [2.13.1] - 2026-10-16
 
 - **OpenAI Platform Key Hardcoded (`.env`, `aiProxyService.js`)**: Added `VITE_OPENAI_API_KEY` to `.env`; added `getActiveOpenAIKey()` resolver that reads env var with localStorage fallback.

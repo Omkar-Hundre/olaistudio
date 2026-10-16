@@ -15,6 +15,20 @@ import {
 import MarkdownRenderer from '../ui/MarkdownRenderer';
 import { chatWithSection } from '../../services/sectionWorkflowService';
 
+/**
+ * Extracts clean HTML from a Gemini response.
+ * Strips markdown code fences and leading preamble sentence.
+ */
+function extractHtml(text) {
+  if (!text) return '';
+  // Try to pull content from a ```html ... ``` block
+  const match = text.match(/```(?:html|jsx|xml)?\s*([\s\S]*?)```/i);
+  if (match) return match[1].trim();
+  // If response itself looks like raw HTML (starts with <)
+  if (/^\s*</.test(text.trim())) return text.trim();
+  return text;
+}
+
 export default function SectionWorkflowDeck({
   sections = [],
   onUpdateSection,
@@ -57,10 +71,11 @@ export default function SectionWorkflowDeck({
       timestamp: new Date().toISOString(),
     };
 
-    const currentHistory = section.messages || [];
-    const updatedHistory = [...currentHistory, userMessage];
+    // Only pass existing messages (no pending assistant placeholder) as history
+    const existingHistory = (section.messages || []).filter(m => m.role === 'user' || m.role === 'assistant');
+    const updatedHistory = [...existingHistory, userMessage];
 
-    // Optimistically update section
+    // Optimistically update section with user message
     onUpdateSection(section.id, {
       messages: updatedHistory,
       isGenerating: true,
@@ -69,18 +84,20 @@ export default function SectionWorkflowDeck({
     try {
       const reply = await chatWithSection({
         section,
-        history: updatedHistory,
-        userMessage: text,
+        history: updatedHistory,  // history already has the new user msg
+        userMessage: text,        // used as fallback guard in service
       });
+
+      const cleanHtml = extractHtml(reply);
 
       const assistantMessage = {
         role: 'assistant',
-        content: reply,
+        content: reply,           // full reply (markdown + HTML) for chat display
         timestamp: new Date().toISOString(),
       };
 
       onUpdateSection(section.id, {
-        content: reply,
+        content: cleanHtml || reply,  // clean HTML for code tab & preview
         messages: [...updatedHistory, assistantMessage],
         isGenerating: false,
       });
